@@ -23,7 +23,7 @@ import kotlinx.coroutines.runBlocking
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 
-private const val gitHubOwner = "NuvioMedia"
+private const val gitHubOwner = "9000000"
 private const val gitHubRepo = "NuvioMobile"
 private const val gitHubApiBase = "https://api.github.com"
 private const val releaseChannelBranch = "cmp-rewrite"
@@ -160,9 +160,13 @@ private object AppUpdaterRepository {
             return true
         }
 
-        return listOf(tagName, name)
+        val matchesChannel = listOf(tagName, name)
             .filterNotNull()
             .any { value -> value.contains(channel, ignoreCase = true) }
+        if (matchesChannel) return true
+
+        // Accept all valid releases on this repository
+        return true
     }
 
     private fun chooseBestApkAsset(assets: List<GitHubAssetDto>): GitHubAssetDto? {

@@ -2292,4 +2292,33 @@
         <item quantity="one">%d title</item>
         <item quantity="other">%d titles</item>
     </plurals>
+    <string name="settings_appearance_low_end_mode">Reduce Motion &amp; Effects</string>
+    <string name="settings_appearance_low_end_mode_description">Disable animations, particle effects, shimmer, and 3D card depth for maximum performance on low-end devices.</string>
+    <string name="compose_player_font">Font</string>
+    <string name="compose_player_font_default">Default</string>
+    <string name="compose_player_font_sans">Sans-Serif</string>
+    <string name="compose_player_font_serif">Serif</string>
+    <string name="compose_player_font_mono">Monospace</string>
+    <string name="compose_player_font_custom">Custom</string>
+    <string name="compose_player_add_font">Add Font</string>
+    <string name="compose_player_add_subtitle">Add Subtitle</string>
+    <string name="compose_player_local_storage">Device Storage</string>
+    <string name="settings_torrserver">TorrServer</string>
+    <string name="settings_torrserver_description">Stream torrents via local or remote TorrServer</string>
+    <string name="torrserver_enable">Enable TorrServer</string>
+    <string name="torrserver_enable_description">Use TorrServer for torrent streaming instead of native P2P engine</string>
+    <string name="torrserver_server_url">Server URL</string>
+    <string name="torrserver_server_url_hint">http://127.0.0.1:8090</string>
+    <string name="torrserver_auth">Authentication</string>
+    <string name="torrserver_auth_description">Basic Auth credentials (optional)</string>
+    <string name="torrserver_auth_username">Username</string>
+    <string name="torrserver_auth_password">Password</string>
+    <string name="torrserver_preload">Preload Buffer</string>
+    <string name="torrserver_preload_description">Preload stream before playback starts</string>
+    <string name="torrserver_save_to_db">Save to Server DB</string>
+    <string name="torrserver_save_to_db_description">Keep torrents in server database</string>
+    <string name="torrserver_gst">GStreamer</string>
+    <string name="torrserver_gst_description">Enable GStreamer transcoding on supported servers</string>
+    <string name="torrserver_test_connection">Test Connection</string>
+    <string name="torrserver_check_gst">Check GStreamer Support</string>
 </resources>

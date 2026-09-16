@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -41,8 +42,9 @@ private val LocalSkeletonAnimation = staticCompositionLocalOf<SkeletonAnimation?
 
 @Composable
 internal fun SkeletonAnimationProvider(content: @Composable () -> Unit) {
+    val isLowEnd = LocalLowEndPerformanceMode.current
     val animation = remember { SkeletonAnimation() }
-    val isActive by remember { derivedStateOf { animation.consumers > 0 } }
+    val isActive by remember(isLowEnd) { derivedStateOf { !isLowEnd && animation.consumers > 0 } }
     if (isActive) {
         LaunchedEffect(animation) {
             animation.progress.snapTo(0f)
@@ -77,6 +79,10 @@ private fun SkeletonAnimationConsumer(animation: SkeletonAnimation?) {
 internal fun Modifier.skeleton(
     shape: Shape = RoundedCornerShape(6.dp),
 ): Modifier {
+    val isLowEnd = LocalLowEndPerformanceMode.current
+    if (isLowEnd) {
+        return clip(shape).background(MaterialTheme.nuvio.colors.skeleton)
+    }
     val progress = rememberSkeletonProgress()
     val base = MaterialTheme.nuvio.colors.skeleton
     val highlight = MaterialTheme.nuvio.colors.shimmer

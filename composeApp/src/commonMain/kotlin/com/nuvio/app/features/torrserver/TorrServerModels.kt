@@ -1,0 +1,198 @@
+package com.nuvio.app.features.torrserver
+
+import com.nuvio.app.features.p2p.P2pSettingsRepository
+import com.nuvio.app.features.p2p.P2pStreamingEngine
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+data class TorrServerConfigData(
+    val enabled: Boolean = false,
+    val serverUrl: String = "http://127.0.0.1:8090",
+    val authUsername: String = "",
+    val authPassword: String = "",
+    val preload: Boolean = true,
+    val saveToDb: Boolean = false,
+    val gst: Boolean = false,
+)
+
+data class TorrServerSettingsUiState(
+    val enabled: Boolean = false,
+    val serverUrl: String = "http://127.0.0.1:8090",
+    val authUsername: String = "",
+    val authPassword: String = "",
+    val preload: Boolean = true,
+    val saveToDb: Boolean = false,
+    val gst: Boolean = false,
+    val isTestingServer: Boolean = false,
+    val serverStatusMessage: String? = null,
+    val serverStatusSuccess: Boolean? = null,
+    val isCheckingGst: Boolean = false,
+    val gstStatusMessage: String? = null,
+    val gstStatusSuccess: Boolean? = null,
+)
+
+internal expect object TorrServerSettingsStorage {
+    fun loadEnabled(): Boolean?
+    fun saveEnabled(enabled: Boolean)
+    fun loadServerUrl(): String?
+    fun saveServerUrl(url: String)
+    fun loadAuthUsername(): String?
+    fun saveAuthUsername(username: String)
+    fun loadAuthPassword(): String?
+    fun saveAuthPassword(password: String)
+    fun loadPreload(): Boolean?
+    fun savePreload(preload: Boolean)
+    fun loadSaveToDb(): Boolean?
+    fun saveSaveToDb(saveToDb: Boolean)
+    fun loadGst(): Boolean?
+    fun saveGst(gst: Boolean)
+}
+
+object TorrServerConfigRepository {
+    private val _uiState = MutableStateFlow(TorrServerSettingsUiState())
+    val uiState: StateFlow<TorrServerSettingsUiState> = _uiState.asStateFlow()
+
+    private var hasLoaded = false
+    private var enabled = false
+    private var serverUrl = "http://127.0.0.1:8090"
+    private var authUsername = ""
+    private var authPassword = ""
+    private var preload = true
+    private var saveToDb = false
+    private var gst = false
+
+    fun ensureLoaded() {
+        if (hasLoaded) return
+        loadFromDisk()
+    }
+
+    private fun loadFromDisk() {
+        hasLoaded = true
+        enabled = TorrServerSettingsStorage.loadEnabled() ?: false
+        serverUrl = TorrServerSettingsStorage.loadServerUrl() ?: "http://127.0.0.1:8090"
+        authUsername = TorrServerSettingsStorage.loadAuthUsername() ?: ""
+        authPassword = TorrServerSettingsStorage.loadAuthPassword() ?: ""
+        preload = TorrServerSettingsStorage.loadPreload() ?: true
+        saveToDb = TorrServerSettingsStorage.loadSaveToDb() ?: false
+        gst = TorrServerSettingsStorage.loadGst() ?: false
+        publish()
+
+    }
+
+    fun setEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (this.enabled == enabled) return
+        this.enabled = enabled
+        TorrServerSettingsStorage.saveEnabled(enabled)
+        publish()
+        if (enabled) {
+            // Tự động tắt P2P và tắt engine P2P giống bản TV
+            P2pSettingsRepository.setP2pEnabled(false)
+            P2pStreamingEngine.shutdown()
+        }
+    }
+
+    fun setServerUrl(url: String) {
+        ensureLoaded()
+        val trimmed = url.trim()
+        if (this.serverUrl == trimmed) return
+        this.serverUrl = trimmed
+        TorrServerSettingsStorage.saveServerUrl(trimmed)
+        publish()
+    }
+
+    fun setCredentials(user: String, pass: String) {
+        ensureLoaded()
+        this.authUsername = user.trim()
+        this.authPassword = pass
+        TorrServerSettingsStorage.saveAuthUsername(this.authUsername)
+        TorrServerSettingsStorage.saveAuthPassword(this.authPassword)
+        publish()
+    }
+
+    fun setPreload(enabled: Boolean) {
+        ensureLoaded()
+        if (this.preload == enabled) return
+        this.preload = enabled
+        TorrServerSettingsStorage.savePreload(enabled)
+        publish()
+    }
+
+    fun setSaveToDb(enabled: Boolean) {
+        ensureLoaded()
+        if (this.saveToDb == enabled) return
+        this.saveToDb = enabled
+        TorrServerSettingsStorage.saveSaveToDb(enabled)
+        publish()
+    }
+
+    fun setGst(enabled: Boolean) {
+        ensureLoaded()
+        if (this.gst == enabled) return
+        this.gst = enabled
+        TorrServerSettingsStorage.saveGst(enabled)
+        publish()
+    }
+
+    fun updateStatus(
+        isTesting: Boolean? = null,
+        serverMsg: String? = null,
+        serverSuccess: Boolean? = null,
+        isCheckingGst: Boolean? = null,
+        gstMsg: String? = null,
+        gstSuccess: Boolean? = null,
+    ) {
+        val cur = _uiState.value
+        _uiState.value = cur.copy(
+            isTestingServer = isTesting ?: cur.isTestingServer,
+            serverStatusMessage = if (isTesting == true) null else (serverMsg ?: cur.serverStatusMessage),
+            serverStatusSuccess = if (isTesting == true) null else (serverSuccess ?: cur.serverStatusSuccess),
+            isCheckingGst = isCheckingGst ?: cur.isCheckingGst,
+            gstStatusMessage = if (isCheckingGst == true) null else (gstMsg ?: cur.gstStatusMessage),
+            gstStatusSuccess = if (isCheckingGst == true) null else (gstSuccess ?: cur.gstStatusSuccess),
+        )
+    }
+
+    suspend fun testConnection() {
+        updateStatus(isTesting = true)
+        val result = TorrServerRemoteApi.healthCheck(serverUrl, authUsername, authPassword)
+        if (result.isSuccess) {
+            updateStatus(isTesting = false, serverMsg = result.getOrNull() ?: "OK", serverSuccess = true)
+        } else {
+            updateStatus(isTesting = false, serverMsg = result.exceptionOrNull()?.message ?: "Lỗi kết nối", serverSuccess = false)
+        }
+    }
+
+    suspend fun checkGst() {
+        updateStatus(isCheckingGst = true)
+        val result = TorrServerRemoteApi.checkGStreamerSupport(serverUrl, authUsername, authPassword)
+        if (result.isSuccess) {
+            val supported = result.getOrDefault(false)
+            updateStatus(
+                isCheckingGst = false,
+                gstMsg = if (supported) "GStreamer được hỗ trợ" else "GStreamer không khả dụng",
+                gstSuccess = supported,
+            )
+        } else {
+            updateStatus(
+                isCheckingGst = false,
+                gstMsg = result.exceptionOrNull()?.message ?: "Lỗi kiểm tra",
+                gstSuccess = false,
+            )
+        }
+    }
+
+    private fun publish() {
+        val cur = _uiState.value
+        _uiState.value = cur.copy(
+            enabled = enabled,
+            serverUrl = serverUrl,
+            authUsername = authUsername,
+            authPassword = authPassword,
+            preload = preload,
+            saveToDb = saveToDb,
+            gst = gst,
+        )
+    }
+}

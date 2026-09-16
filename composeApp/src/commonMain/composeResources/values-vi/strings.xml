@@ -2257,4 +2257,33 @@
         <item quantity="one">%d tiêu đề</item>
         <item quantity="other">%d tiêu đề</item>
     </plurals>
+    <string name="settings_appearance_low_end_mode">Tắt toàn bộ hiệu ứng / Máy yếu</string>
+    <string name="settings_appearance_low_end_mode_description">Tắt toàn bộ animation, hiệu ứng hạt bụi tan biến, shimmer và đổ bóng 3D để tối ưu độ mượt tối đa cho máy yếu.</string>
+    <string name="compose_player_font">Phông chữ</string>
+    <string name="compose_player_font_default">Mặc định</string>
+    <string name="compose_player_font_sans">Sans-Serif</string>
+    <string name="compose_player_font_serif">Serif</string>
+    <string name="compose_player_font_mono">Monospace</string>
+    <string name="compose_player_font_custom">Tùy chỉnh</string>
+    <string name="compose_player_add_font">Thêm phông chữ</string>
+    <string name="compose_player_add_subtitle">Thêm phụ đề</string>
+    <string name="compose_player_local_storage">Bộ nhớ máy</string>
+    <string name="settings_torrserver">TorrServer</string>
+    <string name="settings_torrserver_description">Phát torrent qua máy chủ TorrServer nội bộ hoặc từ xa</string>
+    <string name="torrserver_enable">Bật TorrServer</string>
+    <string name="torrserver_enable_description">Sử dụng TorrServer để phát torrent thay vì engine P2P gốc</string>
+    <string name="torrserver_server_url">Địa chỉ máy chủ</string>
+    <string name="torrserver_server_url_hint">http://127.0.0.1:8090</string>
+    <string name="torrserver_auth">Xác thực tài khoản</string>
+    <string name="torrserver_auth_description">Tài khoản Basic Auth (không bắt buộc)</string>
+    <string name="torrserver_auth_username">Tên đăng nhập</string>
+    <string name="torrserver_auth_password">Mật khẩu</string>
+    <string name="torrserver_preload">Tải trước bộ đệm</string>
+    <string name="torrserver_preload_description">Tải trước một lượng dữ liệu trước khi phát</string>
+    <string name="torrserver_save_to_db">Lưu vào CSDL máy chủ</string>
+    <string name="torrserver_save_to_db_description">Giữ torrent đã phát trong cơ sở dữ liệu của server</string>
+    <string name="torrserver_gst">Hỗ trợ GStreamer</string>
+    <string name="torrserver_gst_description">Sử dụng GStreamer chuyển mã trên các máy chủ hỗ trợ</string>
+    <string name="torrserver_test_connection">Kiểm tra kết nối</string>
+    <string name="torrserver_check_gst">Kiểm tra GStreamer</string>
 </resources>

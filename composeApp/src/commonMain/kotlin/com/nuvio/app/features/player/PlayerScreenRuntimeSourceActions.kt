@@ -11,6 +11,8 @@ import com.nuvio.app.features.downloads.DownloadSubtitles
 import com.nuvio.app.features.downloads.DownloadsRepository
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
+import com.nuvio.app.features.torrserver.TorrServerConfigRepository
+import com.nuvio.app.features.torrserver.TorrServerRemoteApi
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamLinkCacheRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
@@ -253,6 +255,10 @@ internal fun PlayerScreenRuntime.switchToSource(stream: StreamItem) {
         )
     ) return
     if (isP2pStream(stream)) {
+        if (TorrServerConfigRepository.uiState.value.enabled) {
+            switchToTorrServerStream(stream)
+            return
+        }
         switchToP2pSourceStream(stream)
         return
     }
@@ -308,6 +314,10 @@ internal fun PlayerScreenRuntime.switchToEpisodeStream(stream: StreamItem, episo
         )
     ) return
     if (isP2pStream(stream)) {
+        if (TorrServerConfigRepository.uiState.value.enabled) {
+            switchToTorrServerEpisodeStream(stream, episode)
+            return
+        }
         switchToP2pEpisodeStream(stream, episode)
         return
     }
@@ -516,4 +526,86 @@ private fun PlayerScreenRuntime.saveDirectStreamForReuse(
         streamType = stream.streamType,
         contentLanguage = contentLanguage,
     )
+}
+
+
+internal fun PlayerScreenRuntime.switchToTorrServerStream(stream: StreamItem) {
+    val infoHash = stream.p2pInfoHash ?: return
+    val magnetUri = stream.torrentMagnetUri ?: "magnet:?xt=urn:btih:$infoHash"
+    val fileIdx = stream.p2pFileIdx ?: 0
+    val torrConfig = TorrServerConfigRepository.uiState.value
+
+    val torrStreamUrl = TorrServerRemoteApi.buildStreamUrl(
+        serverUrl = torrConfig.serverUrl,
+        magnetLink = magnetUri,
+        fileIdx = fileIdx,
+        preload = torrConfig.preload,
+        save = torrConfig.saveToDb,
+        gst = torrConfig.gst,
+        hash = infoHash,
+    )
+
+    val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
+    flushWatchProgress()
+    stopActiveP2pStream()
+
+    externalSubtitles = stream.externalSubtitles
+    activeSourceUrl = torrStreamUrl
+    activeSourceAudioUrl = null
+    activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
+    activeSourceResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response)
+    activeStreamType = stream.streamType
+    activeTorrentInfoHash = infoHash
+    activeTorrentFileIdx = fileIdx
+    activeTorrentFilename = stream.behaviorHints.filename
+    activeTorrentTrackers = stream.p2pTrackers
+    activeSourceIdentityKey = stream.playerSourceIdentityKey()
+    activeStreamTitle = stream.streamLabel
+    activeStreamSubtitle = stream.streamSubtitle
+    activeProviderName = stream.addonName ?: "TorrServer"
+    activeProviderAddonId = stream.addonId
+    currentStreamBingeGroup = stream.behaviorHints.bingeGroup
+    activeInitialPositionMs = currentPositionMs
+    activeInitialProgressFraction = null
+    showSourcesPanel = false
+    controlsVisible = true
+    PlayerStreamsRepository.pauseSearchForPlayback()
+}
+
+internal fun PlayerScreenRuntime.switchToTorrServerEpisodeStream(
+    stream: StreamItem,
+    episode: MetaVideo,
+) {
+    val infoHash = stream.p2pInfoHash ?: return
+    val magnetUri = stream.torrentMagnetUri ?: "magnet:?xt=urn:btih:$infoHash"
+    val fileIdx = stream.p2pFileIdx ?: 0
+    val torrConfig = TorrServerConfigRepository.uiState.value
+
+    val torrStreamUrl = TorrServerRemoteApi.buildStreamUrl(
+        serverUrl = torrConfig.serverUrl,
+        magnetLink = magnetUri,
+        fileIdx = fileIdx,
+        preload = torrConfig.preload,
+        save = torrConfig.saveToDb,
+        gst = torrConfig.gst,
+        hash = infoHash,
+    )
+
+    resetEpisodePanelAndNextEpisodeState()
+    flushWatchProgress()
+    stopActiveP2pStream()
+    val epVideoId = episode.id
+    val resume = resolveEpisodeResume(epVideoId, episode)
+
+    externalSubtitles = stream.externalSubtitles
+    activeSourceUrl = torrStreamUrl
+    activeSourceAudioUrl = null
+    activeSourceHeaders = emptyMap()
+    activeSourceResponseHeaders = emptyMap()
+    activeStreamType = stream.streamType
+    activeTorrentInfoHash = infoHash
+    activeTorrentFileIdx = fileIdx
+    activeTorrentFilename = stream.behaviorHints.filename
+    activeTorrentTrackers = stream.p2pTrackers
+    applyEpisodeStreamMetadata(stream, episode, resume)
 }

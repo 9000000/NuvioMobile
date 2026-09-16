@@ -1595,6 +1595,14 @@ private class NuvioLibmpvView(
                     mpv.setPropertyInt("sub-pos", (100 - style.bottomOffset / 10).coerceIn(0, 100))
                     mpv.setPropertyBoolean("sub-filter-sdh", style.stripSdh)
                     mpv.setPropertyBoolean("sub-filter-sdh-harder", style.stripSdh)
+                    if (style.fontName == "Custom" && !style.customFontPath.isNullOrBlank()) {
+                        mpv.setPropertyString("sub-font", style.customFontPath)
+                    } else when (style.fontName) {
+                        "Sans-Serif" -> mpv.setPropertyString("sub-font", "sans-serif")
+                        "Serif" -> mpv.setPropertyString("sub-font", "serif")
+                        "Monospace" -> mpv.setPropertyString("sub-font", "monospace")
+                        else -> mpv.setPropertyString("sub-font", "")
+                    }
                 }
             }
 
@@ -1944,6 +1952,7 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: F
         setApplyEmbeddedStyles(false)
         setApplyEmbeddedFontSizes(false)
         setBottomPaddingFraction(bottomPaddingFraction)
+        val typeface = resolveSubtitleTypeface(style.fontName, style.customFontPath, style.bold)
         setStyle(
             CaptionStyleCompat(
                 style.textColor.toArgb(),
@@ -1951,7 +1960,7 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: F
                 android.graphics.Color.TRANSPARENT,
                 if (style.outlineEnabled) CaptionStyleCompat.EDGE_TYPE_OUTLINE else CaptionStyleCompat.EDGE_TYPE_NONE,
                 style.outlineColor.toArgb(),
-                if (style.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT,
+                typeface,
             )
         )
         setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSizeSp.toFloat() * pipScale)
@@ -2369,5 +2378,27 @@ internal class SubtitleRequestHeaderDataSource(
 
     override fun close() {
         upstream.close()
+    }
+}
+
+private fun resolveSubtitleTypeface(fontName: String, customFontPath: String?, bold: Boolean): Typeface {
+    return try {
+        if (fontName == "Custom" && !customFontPath.isNullOrBlank()) {
+            val file = java.io.File(customFontPath)
+            if (file.exists() && file.canRead()) {
+                Typeface.createFromFile(file)
+            } else {
+                if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            }
+        } else {
+            when (fontName) {
+                "Sans-Serif" -> Typeface.create(Typeface.SANS_SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "Serif" -> Typeface.create(Typeface.SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "Monospace" -> Typeface.create(Typeface.MONOSPACE, if (bold) Typeface.BOLD else Typeface.NORMAL)
+                else -> if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            }
+        }
+    } catch (_: Throwable) {
+        if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
     }
 }

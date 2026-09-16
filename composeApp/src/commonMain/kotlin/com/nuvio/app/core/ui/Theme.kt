@@ -27,6 +27,12 @@ import org.jetbrains.compose.resources.Font
 
 val LocalAppTheme = staticCompositionLocalOf { AppTheme.WHITE }
 val LocalThemePalette = staticCompositionLocalOf { ThemeColors.White }
+val LocalLowEndPerformanceMode = staticCompositionLocalOf { false }
+
+val MaterialTheme.isLowEndPerformanceMode: Boolean
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalLowEndPerformanceMode.current
 
 val MaterialTheme.themePalette: ThemeColorPalette
     @Composable
@@ -198,6 +204,7 @@ fun NuvioTheme(
     appTheme: AppTheme = AppTheme.WHITE,
     amoled: Boolean = false,
     customThemeColors: CustomThemeColors = CustomThemeColors.Default,
+    lowEndPerformanceMode: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val palette = remember(appTheme, customThemeColors) {
@@ -217,6 +224,7 @@ fun NuvioTheme(
         LocalRippleConfiguration provides NuvioRippleConfiguration,
         LocalAppTheme provides appTheme,
         LocalThemePalette provides palette,
+        LocalLowEndPerformanceMode provides lowEndPerformanceMode,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

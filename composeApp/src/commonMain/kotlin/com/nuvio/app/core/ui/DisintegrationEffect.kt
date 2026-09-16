@@ -45,9 +45,15 @@ fun DisintegratingContainer(
     val seed = remember { Random.nextLong() }
     val onDisintegratedState = rememberUpdatedState(onDisintegrated)
     val onDisintegrationStartedState = rememberUpdatedState(onDisintegrationStarted)
+    val isLowEnd = LocalLowEndPerformanceMode.current
 
-    LaunchedEffect(disintegrating) {
+    LaunchedEffect(disintegrating, isLowEnd) {
         if (!disintegrating) return@LaunchedEffect
+        if (isLowEnd) {
+            onDisintegrationStartedState.value()
+            onDisintegratedState.value()
+            return@LaunchedEffect
+        }
         val bitmap = runCatching { graphicsLayer.toImageBitmap() }.getOrNull()
         if (bitmap == null) {
             onDisintegrationStartedState.value()

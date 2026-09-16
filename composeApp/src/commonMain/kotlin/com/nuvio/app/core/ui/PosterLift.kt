@@ -72,6 +72,14 @@ internal fun Modifier.posterCardClickable(
     zoomImageUrl: String? = null,
     zoomCornerRadius: Dp = NuvioTokens.Radius.poster,
 ): Modifier {
+    val isLowEnd = LocalLowEndPerformanceMode.current
+    if (isLowEnd) {
+        return this.combinedClickable(
+            onClick = { onClick?.invoke() },
+            onLongClick = onLongClick?.let { { it.invoke() } },
+        )
+    }
+
     val graphicsContext = LocalGraphicsContext.current
     val source = remember(graphicsContext, zoomImageUrl) { PosterLiftSource(graphicsContext) }
     val onPosterClickAnchor = LocalPosterClickAnchor.current

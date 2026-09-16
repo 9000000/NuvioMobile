@@ -1,6 +1,7 @@
 package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.features.torrserver.TorrServerConfigRepository
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -158,6 +159,7 @@ fun SettingsScreen(
             ThemeSettingsRepository.selectedTheme
         }.collectAsStateWithLifecycle()
         val amoledEnabled by remember { ThemeSettingsRepository.amoledEnabled }.collectAsStateWithLifecycle()
+        val lowEndModeEnabled by remember { ThemeSettingsRepository.lowEndModeEnabled }.collectAsStateWithLifecycle()
         val liquidGlassNativeTabBarEnabled by remember {
             ThemeSettingsRepository.liquidGlassNativeTabBarEnabled
         }.collectAsStateWithLifecycle()
@@ -404,6 +406,8 @@ fun SettingsScreen(
                         onThemeSelected = ThemeSettingsRepository::setTheme,
                         amoledEnabled = amoledEnabled,
                         onAmoledToggle = ThemeSettingsRepository::setAmoled,
+                        lowEndModeEnabled = lowEndModeEnabled,
+                        onLowEndModeToggle = ThemeSettingsRepository::setLowEndModeEnabled,
                         liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
                         liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
                         onLiquidGlassNativeTabBarToggle = ThemeSettingsRepository::setLiquidGlassNativeTabBar,
@@ -470,6 +474,8 @@ fun SettingsScreen(
                         onThemeSelected = ThemeSettingsRepository::setTheme,
                         amoledEnabled = amoledEnabled,
                         onAmoledToggle = ThemeSettingsRepository::setAmoled,
+                        lowEndModeEnabled = lowEndModeEnabled,
+                        onLowEndModeToggle = ThemeSettingsRepository::setLowEndModeEnabled,
                         liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
                         liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
                         onLiquidGlassNativeTabBarToggle = ThemeSettingsRepository::setLiquidGlassNativeTabBar,
@@ -548,6 +554,8 @@ private fun MobileSettingsScreen(
     onThemeSelected: (AppTheme) -> Unit,
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
+    lowEndModeEnabled: Boolean,
+    onLowEndModeToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarSupported: Boolean,
     liquidGlassNativeTabBarEnabled: Boolean,
     onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
@@ -591,6 +599,19 @@ private fun MobileSettingsScreen(
 ) {
     val saveableStateHolder = rememberSaveableStateHolder()
     saveableStateHolder.SaveableStateProvider(page.name) {
+        val torrServerUiState by remember {
+            TorrServerConfigRepository.ensureLoaded()
+            TorrServerConfigRepository.uiState
+        }.collectAsStateWithLifecycle()
+        var showTorrServerUrlDialog by rememberSaveable { mutableStateOf(false) }
+        var showTorrServerAuthDialog by rememberSaveable { mutableStateOf(false) }
+        val torrServerScope = rememberCoroutineScope()
+        val onTestTorrServerConnection: () -> Unit = {
+            torrServerScope.launch { TorrServerConfigRepository.testConnection() }
+        }
+        val onCheckTorrServerGst: () -> Unit = {
+            torrServerScope.launch { TorrServerConfigRepository.checkGst() }
+        }
         var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
         var rootSearchVisible by rememberSaveable { mutableStateOf(false) }
         var rootSearchRevealAnimating by rememberSaveable { mutableStateOf(false) }
@@ -702,6 +723,7 @@ private fun MobileSettingsScreen(
                             onContentDiscoveryClick = { onPageChange(SettingsPage.ContentDiscovery) },
                             onIntegrationsClick = { onPageChange(SettingsPage.Integrations) },
                             onTrackingClick = { onPageChange(SettingsPage.TraktAuthentication) },
+                            onTorrServerClick = { onPageChange(SettingsPage.TorrServer) },
                             onSupportersContributorsClick = onSupportersContributorsClick,
                             onLicensesAttributionsClick = onLicensesAttributionsClick,
                             onCheckForUpdatesClick = onCheckForUpdatesClick,
@@ -755,6 +777,8 @@ private fun MobileSettingsScreen(
                     onThemeSelected = onThemeSelected,
                     amoledEnabled = amoledEnabled,
                     onAmoledToggle = onAmoledToggle,
+                    lowEndModeEnabled = lowEndModeEnabled,
+                    onLowEndModeToggle = ThemeSettingsRepository::setLowEndModeEnabled,
                     liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
                     liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
                     onLiquidGlassNativeTabBarToggle = onLiquidGlassNativeTabBarToggle,
@@ -842,7 +866,37 @@ private fun MobileSettingsScreen(
                     commentsEnabled = traktCommentsEnabled,
                     onCommentsEnabledChange = TraktCommentsSettings::setEnabled,
                 )
+                SettingsPage.TorrServer -> torrServerSettingsContent(
+                    isTablet = false,
+                    uiState = torrServerUiState,
+                    onEnabledToggle = TorrServerConfigRepository::setEnabled,
+                    onServerUrlSave = TorrServerConfigRepository::setServerUrl,
+                    onCredentialsSave = TorrServerConfigRepository::setCredentials,
+                    onPreloadToggle = TorrServerConfigRepository::setPreload,
+                    onSaveToDbToggle = TorrServerConfigRepository::setSaveToDb,
+                    onGstToggle = TorrServerConfigRepository::setGst,
+                    onTestConnection = onTestTorrServerConnection,
+                    onCheckGst = onCheckTorrServerGst,
+                    onShowUrlDialog = { showTorrServerUrlDialog = true },
+                    onShowAuthDialog = { showTorrServerAuthDialog = true },
+                )
             }
+        }
+
+        if (showTorrServerUrlDialog) {
+            TorrServerUrlDialog(
+                currentUrl = torrServerUiState.serverUrl,
+                onSave = TorrServerConfigRepository::setServerUrl,
+                onDismiss = { showTorrServerUrlDialog = false },
+            )
+        }
+        if (showTorrServerAuthDialog) {
+            TorrServerAuthDialog(
+                currentUsername = torrServerUiState.authUsername,
+                currentPassword = torrServerUiState.authPassword,
+                onSave = TorrServerConfigRepository::setCredentials,
+                onDismiss = { showTorrServerAuthDialog = false },
+            )
         }
     }
 }
@@ -920,6 +974,8 @@ private fun TabletSettingsScreen(
     onThemeSelected: (AppTheme) -> Unit,
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
+    lowEndModeEnabled: Boolean,
+    onLowEndModeToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarSupported: Boolean,
     liquidGlassNativeTabBarEnabled: Boolean,
     onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
@@ -972,6 +1028,19 @@ private fun TabletSettingsScreen(
     }
 
     val saveableStateHolder = rememberSaveableStateHolder()
+    val torrServerUiState by remember {
+        TorrServerConfigRepository.ensureLoaded()
+        TorrServerConfigRepository.uiState
+    }.collectAsStateWithLifecycle()
+    var showTorrServerUrlDialog by rememberSaveable { mutableStateOf(false) }
+    var showTorrServerAuthDialog by rememberSaveable { mutableStateOf(false) }
+    val torrServerScope = rememberCoroutineScope()
+    val onTestTorrServerConnection: () -> Unit = {
+        torrServerScope.launch { TorrServerConfigRepository.testConnection() }
+    }
+    val onCheckTorrServerGst: () -> Unit = {
+        torrServerScope.launch { TorrServerConfigRepository.checkGst() }
+    }
 
     Row(modifier = Modifier.fillMaxSize()) {
         Surface(
@@ -1126,6 +1195,7 @@ private fun TabletSettingsScreen(
                                 onContentDiscoveryClick = { openInlinePage(SettingsPage.ContentDiscovery) },
                                 onIntegrationsClick = { openInlinePage(SettingsPage.Integrations) },
                                 onTrackingClick = { openInlinePage(SettingsPage.TraktAuthentication) },
+                                onTorrServerClick = { openInlinePage(SettingsPage.TorrServer) },
                                 onSupportersContributorsClick = { openInlinePage(SettingsPage.SupportersContributors) },
                                 onLicensesAttributionsClick = { openInlinePage(SettingsPage.LicensesAttributions) },
                                 onCheckForUpdatesClick = onCheckForUpdatesClick,
@@ -1183,6 +1253,8 @@ private fun TabletSettingsScreen(
                         onThemeSelected = onThemeSelected,
                         amoledEnabled = amoledEnabled,
                         onAmoledToggle = onAmoledToggle,
+                        lowEndModeEnabled = lowEndModeEnabled,
+                        onLowEndModeToggle = ThemeSettingsRepository::setLowEndModeEnabled,
                         liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
                         liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
                         onLiquidGlassNativeTabBarToggle = onLiquidGlassNativeTabBarToggle,
@@ -1270,8 +1342,38 @@ private fun TabletSettingsScreen(
                         commentsEnabled = traktCommentsEnabled,
                         onCommentsEnabledChange = TraktCommentsSettings::setEnabled,
                     )
+                    SettingsPage.TorrServer -> torrServerSettingsContent(
+                        isTablet = true,
+                        uiState = torrServerUiState,
+                        onEnabledToggle = TorrServerConfigRepository::setEnabled,
+                        onServerUrlSave = TorrServerConfigRepository::setServerUrl,
+                        onCredentialsSave = TorrServerConfigRepository::setCredentials,
+                        onPreloadToggle = TorrServerConfigRepository::setPreload,
+                        onSaveToDbToggle = TorrServerConfigRepository::setSaveToDb,
+                        onGstToggle = TorrServerConfigRepository::setGst,
+                        onTestConnection = onTestTorrServerConnection,
+                        onCheckGst = onCheckTorrServerGst,
+                        onShowUrlDialog = { showTorrServerUrlDialog = true },
+                        onShowAuthDialog = { showTorrServerAuthDialog = true },
+                    )
                 }
             }
         }
+    }
+
+    if (showTorrServerUrlDialog) {
+        TorrServerUrlDialog(
+            currentUrl = torrServerUiState.serverUrl,
+            onSave = TorrServerConfigRepository::setServerUrl,
+            onDismiss = { showTorrServerUrlDialog = false },
+        )
+    }
+    if (showTorrServerAuthDialog) {
+        TorrServerAuthDialog(
+            currentUsername = torrServerUiState.authUsername,
+            currentPassword = torrServerUiState.authPassword,
+            onSave = TorrServerConfigRepository::setCredentials,
+            onDismiss = { showTorrServerAuthDialog = false },
+        )
     }
 }

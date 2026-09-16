@@ -54,6 +54,9 @@ data class SubtitleStyleState(
     val stripSdh: Boolean = false,
     val useForcedSubtitles: Boolean = false,
     val showOnlyPreferredLanguages: Boolean = false,
+    val fontName: String = "Default",
+    val customFontPath: String? = null,
+    val customFontName: String? = null,
 ) {
     companion object {
         val DEFAULT = SubtitleStyleState()

@@ -70,7 +70,7 @@ fun App(
 internal fun AppEnvironment(content: @Composable () -> Unit) {
     setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
-            .crossfade(true)
+            .crossfade(!ThemeSettingsRepository.lowEndModeEnabled.value)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .components {
@@ -93,8 +93,11 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
     }.collectAsStateWithLifecycle()
 
     val customThemeColors by ThemeSettingsRepository.customThemeColors.collectAsStateWithLifecycle()
+    val lowEndModeEnabled by remember {
+        ThemeSettingsRepository.lowEndModeEnabled
+    }.collectAsStateWithLifecycle()
 
-    NuvioTheme(appTheme = selectedTheme, amoled = amoledEnabled, customThemeColors = customThemeColors) {
+    NuvioTheme(appTheme = selectedTheme, amoled = amoledEnabled, customThemeColors = customThemeColors, lowEndPerformanceMode = lowEndModeEnabled) {
         content()
     }
 }

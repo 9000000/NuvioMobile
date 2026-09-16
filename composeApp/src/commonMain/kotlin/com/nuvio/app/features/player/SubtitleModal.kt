@@ -56,6 +56,7 @@ import nuvio.composeapp.generated.resources.compose_player_languages
 import nuvio.composeapp.generated.resources.compose_player_none
 import nuvio.composeapp.generated.resources.compose_player_style
 import nuvio.composeapp.generated.resources.compose_player_subtitles
+import nuvio.composeapp.generated.resources.compose_player_add_subtitle
 import nuvio.composeapp.generated.resources.settings_playback_option_forced
 import nuvio.composeapp.generated.resources.subtitle_language_unknown
 import org.jetbrains.compose.resources.stringResource
@@ -132,6 +133,27 @@ fun SubtitleModal(
     val selectedOptionId = pendingOptionId ?: playbackOptionId
     val languageListState = rememberLazyListState()
     val optionsListState = rememberLazyListState()
+    val fontPickerLauncher = rememberFontPickerLauncher { name, path ->
+        onStyleChanged(
+            subtitleStyle.copy(
+                fontName = "Custom",
+                customFontPath = path,
+                customFontName = name,
+            ),
+        )
+    }
+
+    val subtitleFilePickerLauncher = rememberSubtitleFilePickerLauncher { name, fileUri ->
+        val localSubtitle = AddonSubtitle(
+            id = "local_${fileUri.hashCode()}_${System.currentTimeMillis()}",
+            url = fileUri,
+            language = "local",
+            display = name,
+            addonName = "Storage",
+        )
+        onAddonSubtitleSelected(localSubtitle)
+    }
+
     val styleVisible = activeLanguageKey != SubtitleOffLanguageKey &&
         selectedOptionId != null && options.any { it.id == selectedOptionId }
 
@@ -225,6 +247,10 @@ fun SubtitleModal(
                         title = stringResource(Res.string.compose_player_subtitles),
                         width = 300.dp,
                     ) {
+                        SubtitleImportRow(
+                            label = "+ " + stringResource(Res.string.compose_player_add_subtitle),
+                            onClick = subtitleFilePickerLauncher,
+                        )
                         when {
                             options.isEmpty() -> {
                                 when (
@@ -311,6 +337,7 @@ fun SubtitleModal(
                                     onAutoSyncCapture = onAutoSyncCapture,
                                     onAutoSyncCueSelected = onAutoSyncCueSelected,
                                     onAutoSyncReload = onAutoSyncReload,
+                                    onPickCustomFont = fontPickerLauncher,
                                 )
                             }
                         }
@@ -541,4 +568,30 @@ private suspend fun LazyListState.scrollItemIntoViewIfNeeded(targetIndex: Int) {
     if (targetIndex < 0) return
     if (layoutInfo.visibleItemsInfo.any { it.index == targetIndex }) return
     scrollToItem(targetIndex)
+}
+
+@Composable
+private fun SubtitleImportRow(
+    label: String,
+    onClick: () -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(tokens.colors.accent.copy(alpha = 0.15f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            color = tokens.colors.accent,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }

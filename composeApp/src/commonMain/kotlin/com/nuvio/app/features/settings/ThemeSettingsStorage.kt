@@ -7,6 +7,8 @@ internal expect object ThemeSettingsStorage {
     fun saveSelectedTheme(themeName: String)
     fun loadCustomThemeColors(): String?
     fun saveCustomThemeColors(colors: String)
+    fun loadLowEndModeEnabled(): Boolean?
+    fun saveLowEndModeEnabled(enabled: Boolean)
     fun loadAmoledEnabled(): Boolean?
     fun saveAmoledEnabled(enabled: Boolean)
     fun loadLiquidGlassNativeTabBarEnabled(): Boolean?

@@ -57,6 +57,12 @@ internal expect object PlayerSettingsStorage {
     fun saveSubtitleUseForcedSubtitles(enabled: Boolean)
     fun loadSubtitleShowOnlyPreferredLanguages(): Boolean?
     fun saveSubtitleShowOnlyPreferredLanguages(enabled: Boolean)
+    fun loadSubtitleFontName(): String?
+    fun saveSubtitleFontName(fontName: String)
+    fun loadSubtitleCustomFontPath(): String?
+    fun saveSubtitleCustomFontPath(path: String?)
+    fun loadSubtitleCustomFontName(): String?
+    fun saveSubtitleCustomFontName(name: String?)
     fun loadStreamReuseLastLinkEnabled(): Boolean?
     fun saveStreamReuseLastLinkEnabled(enabled: Boolean)
     fun loadStreamReuseLastLinkCacheHours(): Int?

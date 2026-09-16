@@ -28,7 +28,8 @@ fun Modifier.nuvioCardDepth(
     fallbackBorderAlpha: Float = 0f,
 ): Modifier {
     val state = rememberCardDepthStyleUiState()
-    if (!state.isEnabledFor(surface)) {
+    val isLowEnd = LocalLowEndPerformanceMode.current
+    if (isLowEnd || !state.isEnabledFor(surface)) {
         return if (fallbackBorderAlpha > 0f) {
             border(
                 width = 1.dp,

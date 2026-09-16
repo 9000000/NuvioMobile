@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import com.nuvio.app.core.ui.LocalLowEndPerformanceMode
 import com.nuvio.app.core.ui.PosterOpenMotion
 import kotlinx.coroutines.flow.first
 
@@ -28,10 +29,12 @@ internal fun PosterNavigationMotion(
     val animationIncoming = if (incoming || outgoing) incoming else retainedIncoming
     if (animationIncoming == null) return
 
+    val isLowEnd = LocalLowEndPerformanceMode.current
+    val motionDuration = if (isLowEnd) 0 else PosterOpenMotion.DurationMillis
     val elapsed = transition.animateFloat(
-        transitionSpec = { tween(PosterOpenMotion.DurationMillis, easing = LinearEasing) },
+        transitionSpec = { tween(motionDuration, easing = LinearEasing) },
         label = "posterNavigationElapsed",
-    ) { visibility -> elapsedTarget(animationIncoming, visibility) }
+    ) { visibility -> elapsedTarget(animationIncoming, visibility, isLowEnd) }
 
     SideEffect {
         if (incoming || outgoing) retainedIncoming = incoming
@@ -45,9 +48,9 @@ internal fun PosterNavigationMotion(
         }
     }
 
-    LaunchedEffect(request, incoming, outgoing, transition.currentState, transition.targetState, transition.isRunning) {
+    LaunchedEffect(request, incoming, outgoing, transition.currentState, transition.targetState, transition.isRunning, isLowEnd) {
         val settled = transition.currentState == transition.targetState && !transition.isRunning &&
-            elapsed.value == elapsedTarget(animationIncoming, transition.targetState)
+            elapsed.value == elapsedTarget(animationIncoming, transition.targetState, isLowEnd)
         if (settled) {
             if (incoming && transition.targetState == EnterExitState.Visible && request != null) {
                 state.complete(request)
@@ -57,7 +60,8 @@ internal fun PosterNavigationMotion(
     }
 }
 
-private fun elapsedTarget(incoming: Boolean, visibility: EnterExitState): Float {
+private fun elapsedTarget(incoming: Boolean, visibility: EnterExitState, isLowEnd: Boolean = false): Float {
+    if (isLowEnd) return 0f
     val atStart = if (incoming) visibility == EnterExitState.PreEnter else visibility == EnterExitState.Visible
     return if (atStart) 0f else PosterOpenMotion.DurationMillis.toFloat()
 }

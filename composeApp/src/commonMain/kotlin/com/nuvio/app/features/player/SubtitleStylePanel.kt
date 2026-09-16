@@ -41,6 +41,13 @@ import nuvio.composeapp.generated.resources.compose_player_bold
 import nuvio.composeapp.generated.resources.compose_player_bottom_offset
 import nuvio.composeapp.generated.resources.compose_player_capture_line
 import nuvio.composeapp.generated.resources.compose_player_color
+import nuvio.composeapp.generated.resources.compose_player_font
+import nuvio.composeapp.generated.resources.compose_player_font_default
+import nuvio.composeapp.generated.resources.compose_player_font_sans
+import nuvio.composeapp.generated.resources.compose_player_font_serif
+import nuvio.composeapp.generated.resources.compose_player_font_mono
+import nuvio.composeapp.generated.resources.compose_player_font_custom
+import nuvio.composeapp.generated.resources.compose_player_add_font
 import nuvio.composeapp.generated.resources.compose_player_font_size
 import nuvio.composeapp.generated.resources.compose_player_font_size_value
 import nuvio.composeapp.generated.resources.compose_player_loading_lines
@@ -72,6 +79,7 @@ fun SubtitleStylePanel(
     onAutoSyncCapture: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
+    onPickCustomFont: (() -> Unit)? = null,
 ) {
     val sectionGap = if (isCompact) 12.dp else 16.dp
 
@@ -105,6 +113,47 @@ fun SubtitleStylePanel(
                 label = stringResource(Res.string.compose_player_reset),
                 onClick = onSubtitleDelayReset,
             )
+        }
+
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_font)) {
+            val fontOptions = listOf(
+                "Default" to stringResource(Res.string.compose_player_font_default),
+                "Sans-Serif" to stringResource(Res.string.compose_player_font_sans),
+                "Serif" to stringResource(Res.string.compose_player_font_serif),
+                "Monospace" to stringResource(Res.string.compose_player_font_mono),
+            )
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                fontOptions.forEach { (key, label) ->
+                    val isSelected = style.fontName == key
+                    SubtitleFontChip(
+                        label = label,
+                        selected = isSelected,
+                        onClick = { onStyleChanged(style.copy(fontName = key)) },
+                    )
+                }
+
+                if (!style.customFontPath.isNullOrBlank()) {
+                    val isCustomSelected = style.fontName == "Custom"
+                    SubtitleFontChip(
+                        label = style.customFontName ?: stringResource(Res.string.compose_player_font_custom),
+                        selected = isCustomSelected,
+                        onClick = { onStyleChanged(style.copy(fontName = "Custom")) },
+                    )
+                }
+
+                if (onPickCustomFont != null) {
+                    SubtitleFontChip(
+                        label = "+ ${stringResource(Res.string.compose_player_add_font)}",
+                        selected = false,
+                        onClick = onPickCustomFont,
+                        isAction = true,
+                    )
+                }
+            }
         }
 
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_font_size)) {
@@ -489,3 +538,39 @@ private val SubtitleOutlineColorSwatches = listOf(
     Color(0xFF00E5FF),
     Color(0xFFFF5C5C),
 )
+
+@Composable
+private fun SubtitleFontChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    isAction: Boolean = false,
+) {
+    val tokens = MaterialTheme.nuvio
+    val backgroundColor = when {
+        selected -> tokens.colors.accent
+        isAction -> tokens.colors.accent.copy(alpha = 0.2f)
+        else -> Color.White.copy(alpha = 0.08f)
+    }
+    val textColor = when {
+        selected -> tokens.colors.onAccent
+        isAction -> tokens.colors.accent
+        else -> Color.White
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}

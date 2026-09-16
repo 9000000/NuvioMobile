@@ -19,6 +19,17 @@ fun ProfileMeshBackground(
     profileColor: Color,
     modifier: Modifier = Modifier,
 ) {
+    val isLowEnd = LocalLowEndPerformanceMode.current
+    if (isLowEnd) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .drawBehind {
+                    drawRect(color = Color.Black, size = size)
+                },
+        )
+        return
+    }
     val animatedProfileColor by animateColorAsState(
         targetValue = profileColor,
         animationSpec = tween(durationMillis = 520),
