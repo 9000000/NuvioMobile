@@ -23,8 +23,9 @@ import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.debrid.toastMessage
 import com.nuvio.app.features.details.MetaDetailsRepository
-import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pSettingsRepository
+import com.nuvio.app.features.torrserver.TorrServerConfigRepository
+import com.nuvio.app.features.torrserver.TorrServerRemoteApi
 import com.nuvio.app.features.player.PlayerLaunch
 import com.nuvio.app.features.player.PlayerLaunchStore
 import com.nuvio.app.features.player.PlayerSettingsRepository
@@ -46,14 +47,6 @@ import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.getString
 
-private data class PendingP2pStreamOpen(
-    val stream: StreamItem,
-    val resumePositionMs: Long?,
-    val resumeProgressFraction: Float?,
-    val forceExternal: Boolean,
-    val forceInternal: Boolean,
-    val isAutoPlay: Boolean,
-)
 
 @Composable
 internal fun StreamDestination(
@@ -78,7 +71,6 @@ internal fun StreamDestination(
     val streamRouteScope = rememberCoroutineScope()
     var autoPlayNavigationStarted by remember(route.launchId) { mutableStateOf(false) }
     var resolvingDebridStream by rememberSaveable(route.launchId) { mutableStateOf(false) }
-    var pendingP2pStreamOpen by remember { mutableStateOf<PendingP2pStreamOpen?>(null) }
     val shouldResolveEpisodeVideoId =
         launch.parentMetaId != null &&
             launch.seasonNumber != null &&
@@ -227,6 +219,108 @@ internal fun StreamDestination(
         }
     }
 
+    fun openTorrServerStream(
+        stream: StreamItem,
+        resolvedResumePositionMs: Long?,
+        resolvedResumeProgressFraction: Float?,
+        replaceStreamRoute: Boolean,
+        forceExternal: Boolean = false,
+        forceInternal: Boolean = false,
+    ) {
+        val infoHash = stream.p2pInfoHash ?: return
+        val magnetUri = com.nuvio.app.features.torrserver.buildTorrServerMagnet(stream, infoHash)
+        val fileIdx = stream.p2pFileIdx ?: 0
+        val torrConfig = TorrServerConfigRepository.uiState.value
+
+        val torrStreamUrl = TorrServerRemoteApi.buildStreamUrl(
+            serverUrl = torrConfig.serverUrl,
+            magnetLink = magnetUri,
+            fileIdx = fileIdx,
+            preload = torrConfig.preload,
+            save = torrConfig.saveToDb,
+            gst = torrConfig.gst,
+            hash = infoHash,
+        )
+
+        if (playerSettings.streamReuseLastLinkEnabled) {
+            val cacheKey = StreamLinkCacheRepository.contentKey(
+                type = launch.type,
+                videoId = effectiveVideoId,
+                parentMetaId = launch.parentMetaId,
+                season = launch.seasonNumber,
+                episode = launch.episodeNumber,
+            )
+            StreamLinkCacheRepository.save(
+                contentKey = cacheKey,
+                url = torrStreamUrl,
+                streamName = stream.streamLabel,
+                addonName = stream.addonName ?: "TorrServer",
+                addonId = stream.addonId,
+                requestHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request),
+                responseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response),
+                filename = stream.behaviorHints.filename,
+                videoSize = stream.behaviorHints.videoSize,
+                bingeGroup = stream.behaviorHints.bingeGroup,
+                streamType = stream.streamType,
+                infoHash = infoHash,
+                fileIdx = stream.p2pFileIdx,
+                sources = stream.sources,
+                contentLanguage = resolveLaunchContentLanguage(),
+            )
+        }
+
+        val playerLaunch = PlayerLaunch(
+            profileId = launch.profileId,
+            title = launch.title,
+            sourceUrl = torrStreamUrl,
+            sourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request),
+            sourceResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response),
+            externalSubtitles = stream.externalSubtitles,
+            streamType = stream.streamType,
+            logo = launch.logo,
+            poster = launch.poster,
+            background = launch.background,
+            seasonNumber = launch.seasonNumber,
+            episodeNumber = launch.episodeNumber,
+            episodeTitle = launch.episodeTitle,
+            episodeThumbnail = launch.episodeThumbnail,
+            streamTitle = stream.streamLabel,
+            streamSubtitle = stream.streamSubtitle,
+            bingeGroup = stream.behaviorHints.bingeGroup,
+            pauseDescription = pauseDescription,
+            providerName = stream.addonName ?: "TorrServer",
+            providerAddonId = stream.addonId,
+            contentType = launch.type,
+            videoId = effectiveVideoId,
+            parentMetaId = launch.parentMetaId ?: effectiveVideoId,
+            parentMetaType = launch.parentMetaType ?: launch.type,
+            torrentInfoHash = null,
+            torrentFileIdx = fileIdx,
+            torrentFilename = stream.behaviorHints.filename,
+            torrentTrackers = stream.p2pTrackers,
+            initialPositionMs = resolvedResumePositionMs ?: 0L,
+            initialProgressFraction = resolvedResumeProgressFraction,
+            contentLanguage = resolveLaunchContentLanguage(),
+        )
+
+        if (!forceInternal && (forceExternal || playerSettings.externalPlayerEnabled)) {
+            streamRouteScope.launch {
+                openExternalPlayback(playerLaunch)
+                StreamsRepository.cancelLoading()
+            }
+            return
+        }
+
+        autoPlayNavigationStarted = replaceStreamRoute
+        val launchId = PlayerLaunchStore.put(playerLaunch)
+        StreamsRepository.cancelLoading()
+        navController.navigate(PlayerRoute(launchId = launchId, title = playerLaunch.title)) {
+            if (replaceStreamRoute) {
+                popUpTo<StreamRoute> { inclusive = true }
+            }
+        }
+    }
+
     fun requestOrOpenP2pStream(
         stream: StreamItem,
         resolvedResumePositionMs: Long?,
@@ -239,20 +333,23 @@ internal fun StreamDestination(
             if (isAutoPlay) StreamsRepository.skipAutoPlayStream(stream)
             return
         }
+        if (TorrServerConfigRepository.uiState.value.enabled) {
+            openTorrServerStream(
+                stream = stream,
+                resolvedResumePositionMs = resolvedResumePositionMs,
+                resolvedResumeProgressFraction = resolvedResumeProgressFraction,
+                replaceStreamRoute = isAutoPlay,
+                forceExternal = forceExternal,
+                forceInternal = forceInternal,
+            )
+            return
+        }
         if (!P2pSettingsRepository.isVisible) {
             if (isAutoPlay) StreamsRepository.skipAutoPlayStream(stream)
             return
         }
         if (!p2pEnabled) {
-            pendingP2pStreamOpen = PendingP2pStreamOpen(
-                stream = stream,
-                resumePositionMs = resolvedResumePositionMs,
-                resumeProgressFraction = resolvedResumeProgressFraction,
-                forceExternal = forceExternal,
-                forceInternal = forceInternal,
-                isAutoPlay = isAutoPlay,
-            )
-            return
+            P2pSettingsRepository.setP2pEnabled(true)
         }
         openP2pStream(
             stream = stream,
@@ -696,27 +793,6 @@ internal fun StreamDestination(
             onBack = onBack,
             modifier = Modifier.fillMaxSize(),
         )
-        pendingP2pStreamOpen?.let { pending ->
-            P2pConsentDialog(
-                onEnableP2p = {
-                    P2pSettingsRepository.setP2pEnabled(true)
-                    pendingP2pStreamOpen = null
-                    openP2pStream(
-                        stream = pending.stream,
-                        resolvedResumePositionMs = pending.resumePositionMs,
-                        resolvedResumeProgressFraction = pending.resumeProgressFraction,
-                        replaceStreamRoute = pending.isAutoPlay,
-                    )
-                },
-                onDismiss = {
-                    if (pending.isAutoPlay) {
-                        StreamsRepository.skipAutoPlayStream(pending.stream)
-                        StreamsRepository.consumeAutoPlay()
-                    }
-                    pendingP2pStreamOpen = null
-                },
-            )
-        }
         if (showLoadingScreen) {
             StreamLoadingScreen(
                 launch = launch,

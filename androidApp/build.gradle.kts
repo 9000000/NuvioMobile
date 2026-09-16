@@ -185,3 +185,74 @@ dependencies {
     androidTestImplementation("androidx.test:core:1.7.0")
     androidTestImplementation(libs.androidx.testExt.junit)
 }
+
+abstract class RenameReleaseApksTask : DefaultTask() {
+    @get:Input
+    abstract val versionName: Property<String>
+
+    @get:Internal
+    abstract val apkDirectory: DirectoryProperty
+
+    @TaskAction
+    fun renameApks() {
+        val version = versionName.get()
+        val apkOutputDir = apkDirectory.orNull?.asFile ?: return
+        if (!apkOutputDir.exists()) return
+
+        val apkFiles = apkOutputDir.walkTopDown().filter { file ->
+            file.isFile && file.extension == "apk" &&
+                (file.parentFile.name.equals("release", ignoreCase = true) || file.name.contains("release", ignoreCase = true))
+        }.toList()
+        for (apk in apkFiles) {
+            val oldName = apk.name
+            if (oldName.startsWith("NuvioMobile-") || oldName.contains("unaligned", ignoreCase = true)) continue
+
+            val lower = oldName.lowercase()
+            val abi = when {
+                "arm64-v8a" in lower -> "arm64-v8a"
+                "armeabi-v7a" in lower -> "armeabi-v7a"
+                "x86_64" in lower -> "x86_64"
+                "x86" in lower -> "x86"
+                else -> "universal"
+            }
+
+            val newName = "NuvioMobile-$version-$abi.apk"
+            val targetFile = File(apk.parentFile, newName)
+            if (targetFile.exists() && targetFile != apk) {
+                targetFile.delete()
+            }
+            if (apk.renameTo(targetFile)) {
+                println("   [APK-RENAME] $oldName -> $newName")
+                val metadataFile = File(apk.parentFile, "output-metadata.json")
+                if (metadataFile.exists()) {
+                    try {
+                        val content = metadataFile.readText(Charsets.UTF_8)
+                        if (content.contains(oldName)) {
+                            metadataFile.writeText(content.replace(oldName, newName), Charsets.UTF_8)
+                        }
+                    } catch (e: Exception) {
+                        println("   [WARN] Could not update output-metadata.json: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+}
+
+val renameReleaseApks = tasks.register<RenameReleaseApksTask>("renameReleaseApks") {
+    description = "Renames release APKs to NuvioMobile-<version>-<abi>.apk"
+    group = "build"
+    versionName.set(releaseAppVersionName)
+    apkDirectory.set(layout.buildDirectory.dir("outputs/apk"))
+}
+
+tasks.matching { task ->
+    task.name != "renameReleaseApks" &&
+        (task.name.startsWith("assemble") || task.name.startsWith("package")) &&
+        task.name.contains("Release", ignoreCase = true)
+}.configureEach {
+    finalizedBy(renameReleaseApks)
+}
+
+
+

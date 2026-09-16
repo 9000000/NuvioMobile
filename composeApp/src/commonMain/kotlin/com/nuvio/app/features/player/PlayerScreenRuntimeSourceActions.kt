@@ -163,8 +163,7 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
     val infoHash = stream.p2pInfoHash ?: return
     if (!P2pSettingsRepository.isVisible) return
     if (!P2pSettingsRepository.uiState.value.p2pEnabled) {
-        pendingP2pSwitch = PendingPlayerP2pSwitch(stream = stream, episode = null, isAutoPlay = false)
-        return
+        P2pSettingsRepository.setP2pEnabled(true)
     }
     val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
     flushWatchProgress()
@@ -206,8 +205,7 @@ internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
     val infoHash = stream.p2pInfoHash ?: return
     if (!P2pSettingsRepository.isVisible) return
     if (!P2pSettingsRepository.uiState.value.p2pEnabled) {
-        pendingP2pSwitch = PendingPlayerP2pSwitch(stream = stream, episode = episode, isAutoPlay = isAutoPlay)
-        return
+        P2pSettingsRepository.setP2pEnabled(true)
     }
     resetEpisodePanelAndNextEpisodeState()
     flushWatchProgress()
@@ -531,7 +529,7 @@ private fun PlayerScreenRuntime.saveDirectStreamForReuse(
 
 internal fun PlayerScreenRuntime.switchToTorrServerStream(stream: StreamItem) {
     val infoHash = stream.p2pInfoHash ?: return
-    val magnetUri = stream.torrentMagnetUri ?: "magnet:?xt=urn:btih:$infoHash"
+    val magnetUri = com.nuvio.app.features.torrserver.buildTorrServerMagnet(stream, infoHash)
     val fileIdx = stream.p2pFileIdx ?: 0
     val torrConfig = TorrServerConfigRepository.uiState.value
 
@@ -555,7 +553,7 @@ internal fun PlayerScreenRuntime.switchToTorrServerStream(stream: StreamItem) {
     activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
     activeSourceResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response)
     activeStreamType = stream.streamType
-    activeTorrentInfoHash = infoHash
+    activeTorrentInfoHash = null
     activeTorrentFileIdx = fileIdx
     activeTorrentFilename = stream.behaviorHints.filename
     activeTorrentTrackers = stream.p2pTrackers
@@ -577,7 +575,7 @@ internal fun PlayerScreenRuntime.switchToTorrServerEpisodeStream(
     episode: MetaVideo,
 ) {
     val infoHash = stream.p2pInfoHash ?: return
-    val magnetUri = stream.torrentMagnetUri ?: "magnet:?xt=urn:btih:$infoHash"
+    val magnetUri = com.nuvio.app.features.torrserver.buildTorrServerMagnet(stream, infoHash)
     val fileIdx = stream.p2pFileIdx ?: 0
     val torrConfig = TorrServerConfigRepository.uiState.value
 
@@ -603,7 +601,7 @@ internal fun PlayerScreenRuntime.switchToTorrServerEpisodeStream(
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
     activeStreamType = stream.streamType
-    activeTorrentInfoHash = infoHash
+    activeTorrentInfoHash = null
     activeTorrentFileIdx = fileIdx
     activeTorrentFilename = stream.behaviorHints.filename
     activeTorrentTrackers = stream.p2pTrackers

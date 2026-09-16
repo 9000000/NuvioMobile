@@ -74,7 +74,6 @@ import com.nuvio.app.features.player.formatPlaybackSpeedLabel
 import com.nuvio.app.features.player.languageLabelForCode
 import com.nuvio.app.features.player.subtitleFontSizeRangeSp
 import com.nuvio.app.features.player.toStorageHexString
-import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pCacheClearResult
 import com.nuvio.app.features.p2p.P2pCacheSize
 import com.nuvio.app.features.p2p.P2pSettingsRepository
@@ -315,7 +314,6 @@ private fun PlaybackSettingsSection(
     var showAutoPlayAddonSelectionDialog by remember { mutableStateOf(false) }
     var showAutoPlayPluginSelectionDialog by remember { mutableStateOf(false) }
     var showAutoPlayRegexDialog by remember { mutableStateOf(false) }
-    var showP2pConsentDialog by remember { mutableStateOf(false) }
     var showP2pProfileDialog by remember { mutableStateOf(false) }
     var showP2pCacheSizeDialog by remember { mutableStateOf(false) }
     var p2pCacheClearResult by remember { mutableStateOf<P2pCacheClearResult?>(null) }
@@ -671,13 +669,7 @@ private fun PlaybackSettingsSection(
                         description = stringResource(Res.string.settings_p2p_subtitle),
                         checked = p2pSettings.p2pEnabled,
                         isTablet = isTablet,
-                        onCheckedChange = { enabled ->
-                            if (enabled && !p2pSettings.p2pEnabled) {
-                                showP2pConsentDialog = true
-                            } else {
-                                P2pSettingsRepository.setP2pEnabled(enabled)
-                            }
-                        },
+                        onCheckedChange = P2pSettingsRepository::setP2pEnabled,
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
@@ -1457,15 +1449,6 @@ private fun PlaybackSettingsSection(
         )
     }
 
-    if (showP2pConsentDialog) {
-        P2pConsentDialog(
-            onEnableP2p = {
-                P2pSettingsRepository.setP2pEnabled(true)
-                showP2pConsentDialog = false
-            },
-            onDismiss = { showP2pConsentDialog = false },
-        )
-    }
 
     if (showDecoderPriorityDialog) {
         DecoderPriorityDialog(

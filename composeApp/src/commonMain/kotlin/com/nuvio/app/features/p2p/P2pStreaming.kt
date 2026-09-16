@@ -1,6 +1,7 @@
 package com.nuvio.app.features.p2p
 
 import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.features.torrserver.TorrServerConfigRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -78,6 +79,11 @@ object P2pSettingsRepository {
         p2pEnabled = enabled
         P2pSettingsStorage.saveP2pEnabled(enabled)
         publish()
+        if (enabled) {
+            TorrServerConfigRepository.setEnabled(false)
+        } else {
+            P2pStreamingEngine.shutdown()
+        }
     }
 
     fun setEnableUpload(enabled: Boolean) {

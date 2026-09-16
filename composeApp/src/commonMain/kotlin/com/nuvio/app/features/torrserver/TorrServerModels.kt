@@ -196,3 +196,18 @@ object TorrServerConfigRepository {
         )
     }
 }
+
+fun buildTorrServerMagnet(stream: com.nuvio.app.features.streams.StreamItem, infoHash: String): String {
+    val existing = stream.torrentMagnetUri
+    val trackers = stream.p2pTrackers
+    val trParams = if (trackers.isNotEmpty() && (existing == null || !existing.contains("tr="))) {
+        trackers.joinToString("") { "&tr=$it" }
+    } else {
+        ""
+    }
+    return when {
+        existing != null -> "$existing$trParams"
+        else -> "magnet:?xt=urn:btih:$infoHash$trParams"
+    }
+}
+
