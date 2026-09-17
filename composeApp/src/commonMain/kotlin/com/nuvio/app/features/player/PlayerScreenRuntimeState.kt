@@ -16,7 +16,9 @@ import com.nuvio.app.features.p2p.P2pSettingsUiState
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.player.skip.NextEpisodeInfo
 import com.nuvio.app.features.player.skip.SkipInterval
+import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamsUiState
+import com.nuvio.app.features.torrserver.TorrServerRemoteFile
 import com.nuvio.app.features.tracking.TrackingMediaReference
 import com.nuvio.app.features.watched.WatchedUiState
 import com.nuvio.app.features.watchprogress.WatchProgressUiState
@@ -158,6 +160,11 @@ internal class PlayerScreenRuntime(
     var showSourcesPanel by mutableStateOf(false)
     var showEpisodesPanel by mutableStateOf(false)
     var showSubmitIntroModal by mutableStateOf(false)
+    var torrentPickerStream by mutableStateOf<StreamItem?>(null)
+    var torrentPickerFiles by mutableStateOf<List<TorrServerRemoteFile>>(emptyList())
+    var isTorrentPickerLoading by mutableStateOf(false)
+    var torrentPickerError by mutableStateOf<String?>(null)
+    var torrentPickerJob: Job? = null
     var submitIntroSegmentType by mutableStateOf("intro")
     var submitIntroStartTimeStr by mutableStateOf("00:00")
     var submitIntroEndTimeStr by mutableStateOf("00:00")

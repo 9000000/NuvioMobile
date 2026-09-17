@@ -13,6 +13,8 @@ import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.torrserver.TorrServerConfigRepository
 import com.nuvio.app.features.torrserver.TorrServerRemoteApi
+import com.nuvio.app.features.torrserver.TorrServerService
+import com.nuvio.app.features.torrserver.buildTorrServerMagnet
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamLinkCacheRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
@@ -119,6 +121,7 @@ internal fun StreamItem.playerSourceIdentityKey(): String? {
 internal fun PlayerScreenRuntime.stopActiveP2pStream() {
     if (activeTorrentInfoHash != null || p2pResolvedSourceUrl != null) {
         P2pStreamingEngine.stopStream()
+        com.nuvio.app.features.torrserver.TorrServerService.stopStream()
     }
     activeTorrentInfoHash = null
     activeTorrentFileIdx = null
@@ -254,7 +257,7 @@ internal fun PlayerScreenRuntime.switchToSource(stream: StreamItem) {
     ) return
     if (isP2pStream(stream)) {
         if (TorrServerConfigRepository.uiState.value.enabled) {
-            switchToTorrServerStream(stream)
+            prepareTorrServerFilePicker(stream)
             return
         }
         switchToP2pSourceStream(stream)
@@ -313,7 +316,7 @@ internal fun PlayerScreenRuntime.switchToEpisodeStream(stream: StreamItem, episo
     ) return
     if (isP2pStream(stream)) {
         if (TorrServerConfigRepository.uiState.value.enabled) {
-            switchToTorrServerEpisodeStream(stream, episode)
+            prepareTorrServerFilePicker(stream, episode)
             return
         }
         switchToP2pEpisodeStream(stream, episode)
@@ -529,31 +532,24 @@ private fun PlayerScreenRuntime.saveDirectStreamForReuse(
 
 internal fun PlayerScreenRuntime.switchToTorrServerStream(stream: StreamItem) {
     val infoHash = stream.p2pInfoHash ?: return
-    val magnetUri = com.nuvio.app.features.torrserver.buildTorrServerMagnet(stream, infoHash)
     val fileIdx = stream.p2pFileIdx ?: 0
-    val torrConfig = TorrServerConfigRepository.uiState.value
-
-    val torrStreamUrl = TorrServerRemoteApi.buildStreamUrl(
-        serverUrl = torrConfig.serverUrl,
-        magnetLink = magnetUri,
-        fileIdx = fileIdx,
-        preload = torrConfig.preload,
-        save = torrConfig.saveToDb,
-        gst = torrConfig.gst,
-        hash = infoHash,
-    )
-
     val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
     flushWatchProgress()
     stopActiveP2pStream()
+    saveP2pStreamForReuse(
+        stream = stream,
+        videoId = activeVideoId,
+        season = activeSeasonNumber,
+        episode = activeEpisodeNumber,
+    )
 
     externalSubtitles = stream.externalSubtitles
-    activeSourceUrl = torrStreamUrl
+    activeSourceUrl = p2pSentinelUrl(infoHash, fileIdx)
     activeSourceAudioUrl = null
-    activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
-    activeSourceResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response)
-    activeStreamType = stream.streamType
-    activeTorrentInfoHash = null
+    activeSourceHeaders = emptyMap()
+    activeSourceResponseHeaders = emptyMap()
+    activeStreamType = null
+    activeTorrentInfoHash = infoHash
     activeTorrentFileIdx = fileIdx
     activeTorrentFilename = stream.behaviorHints.filename
     activeTorrentTrackers = stream.p2pTrackers
@@ -575,35 +571,67 @@ internal fun PlayerScreenRuntime.switchToTorrServerEpisodeStream(
     episode: MetaVideo,
 ) {
     val infoHash = stream.p2pInfoHash ?: return
-    val magnetUri = com.nuvio.app.features.torrserver.buildTorrServerMagnet(stream, infoHash)
     val fileIdx = stream.p2pFileIdx ?: 0
-    val torrConfig = TorrServerConfigRepository.uiState.value
-
-    val torrStreamUrl = TorrServerRemoteApi.buildStreamUrl(
-        serverUrl = torrConfig.serverUrl,
-        magnetLink = magnetUri,
-        fileIdx = fileIdx,
-        preload = torrConfig.preload,
-        save = torrConfig.saveToDb,
-        gst = torrConfig.gst,
-        hash = infoHash,
-    )
-
     resetEpisodePanelAndNextEpisodeState()
     flushWatchProgress()
     stopActiveP2pStream()
     val epVideoId = episode.id
     val resume = resolveEpisodeResume(epVideoId, episode)
+    saveP2pStreamForReuse(
+        stream = stream,
+        videoId = epVideoId,
+        season = episode.season,
+        episode = episode.episode,
+    )
 
     externalSubtitles = stream.externalSubtitles
-    activeSourceUrl = torrStreamUrl
+    activeSourceUrl = p2pSentinelUrl(infoHash, fileIdx)
     activeSourceAudioUrl = null
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
-    activeStreamType = stream.streamType
-    activeTorrentInfoHash = null
+    activeStreamType = null
+    activeTorrentInfoHash = infoHash
     activeTorrentFileIdx = fileIdx
     activeTorrentFilename = stream.behaviorHints.filename
     activeTorrentTrackers = stream.p2pTrackers
     applyEpisodeStreamMetadata(stream, episode, resume)
+}
+
+internal fun PlayerScreenRuntime.prepareTorrServerFilePicker(
+    stream: StreamItem,
+    episode: MetaVideo? = null,
+) {
+    val infoHash = stream.p2pInfoHash ?: run {
+        if (episode != null) {
+            switchToTorrServerEpisodeStream(stream, episode)
+        } else {
+            switchToTorrServerStream(stream)
+        }
+        return
+    }
+    torrentPickerStream = stream
+    isTorrentPickerLoading = true
+    torrentPickerError = null
+    torrentPickerFiles = emptyList()
+    torrentPickerJob?.cancel()
+    torrentPickerJob = scope.launch {
+        try {
+            val magnetOverride = buildTorrServerMagnet(stream, infoHash)
+            val files = TorrServerService.fetchTorrentFiles(
+                infoHash = infoHash,
+                title = title,
+                poster = poster,
+                trackers = stream.p2pTrackers,
+                magnetOverride = magnetOverride,
+            )
+            torrentPickerFiles = files
+            isTorrentPickerLoading = false
+            if (files.isEmpty()) {
+                torrentPickerError = "Không tìm thấy tệp nào trong torrent này"
+            }
+        } catch (e: Exception) {
+            torrentPickerError = e.message ?: "Could not load torrent files"
+            isTorrentPickerLoading = false
+        }
+    }
 }

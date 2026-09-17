@@ -2286,4 +2286,6 @@
     <string name="torrserver_gst_description">Sử dụng GStreamer chuyển mã trên các máy chủ hỗ trợ</string>
     <string name="torrserver_test_connection">Kiểm tra kết nối</string>
     <string name="torrserver_check_gst">Kiểm tra GStreamer</string>
+    <string name="torrserver_select_file">Chọn tệp trong Torrent</string>
+    <string name="torrserver_files_title">Danh sách tệp Torrent</string>
 </resources>

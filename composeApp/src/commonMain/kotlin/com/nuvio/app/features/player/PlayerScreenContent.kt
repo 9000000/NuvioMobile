@@ -49,6 +49,8 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         P2pSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
     val p2pStreamingState by P2pStreamingEngine.state.collectAsStateWithLifecycle()
+    val torrServerStreamingState by com.nuvio.app.features.torrserver.TorrServerService.state.collectAsStateWithLifecycle()
+    val torrServerConfig by com.nuvio.app.features.torrserver.TorrServerConfigRepository.uiState.collectAsStateWithLifecycle()
     val metaScreenSettingsUiState by remember {
         MetaScreenSettingsRepository.ensureLoaded()
         MetaScreenSettingsRepository.uiState
@@ -85,7 +87,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         runtime.gestureController = rememberPlayerGestureController()
         runtime.playerSettingsUiState = playerSettingsUiState
         runtime.p2pSettingsUiState = p2pSettingsUiState
-        runtime.p2pStreamingState = p2pStreamingState
+        runtime.p2pStreamingState = if (torrServerConfig.enabled) torrServerStreamingState else p2pStreamingState
         runtime.metaScreenSettingsUiState = metaScreenSettingsUiState
         runtime.watchedUiState = watchedUiState
         runtime.watchProgressUiState = watchProgressUiState

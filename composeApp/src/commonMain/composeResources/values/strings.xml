@@ -2321,4 +2321,6 @@
     <string name="torrserver_gst_description">Enable GStreamer transcoding on supported servers</string>
     <string name="torrserver_test_connection">Test Connection</string>
     <string name="torrserver_check_gst">Check GStreamer Support</string>
+    <string name="torrserver_select_file">Select Torrent File</string>
+    <string name="torrserver_files_title">Files in Torrent</string>
 </resources>

@@ -32,6 +32,46 @@ data class TorrServerSettingsUiState(
     val gstStatusSuccess: Boolean? = null,
 )
 
+data class TorrServerRemoteFile(
+    val id: Int,
+    val path: String,
+    val length: Long,
+)
+
+data class TorrServerRemoteStatus(
+    val hash: String,
+    val title: String? = null,
+    val stat: Int = 0,
+    val statString: String? = null,
+    val downloadSpeed: Long = 0L,
+    val uploadSpeed: Long = 0L,
+    val preloadedBytes: Long = 0L,
+    val preloadSize: Long = 0L,
+    val loadedSize: Long = 0L,
+    val torrentSize: Long = 0L,
+    val activePeers: Int = 0,
+    val connectedSeeders: Int = 0,
+    val totalPeers: Int = 0,
+    val files: List<TorrServerRemoteFile> = emptyList(),
+) {
+    val isPreloadReady: Boolean
+        get() = (preloadSize > 0 && preloadedBytes >= preloadSize * 95 / 100) ||
+            stat == 3 ||
+            statString.equals("active", ignoreCase = true) ||
+            statString.equals("Torrent working", ignoreCase = true)
+
+    val preloadProgress: Float
+        get() {
+            if (isPreloadReady) return 1f
+            val target = if (preloadSize > 0) preloadSize else if (stat == 2 && preloadedBytes > 0) 33_554_432L else 0L
+            return if (target > 0) (preloadedBytes.toFloat() / target).coerceIn(0f, 1f) else 0f
+        }
+}
+
+fun torrServerDisplayTitle(title: String?): String? =
+    title?.trim()?.takeIf { it.isNotBlank() }?.let { "[NuvioM] $it" }
+
+
 internal expect object TorrServerSettingsStorage {
     fun loadEnabled(): Boolean?
     fun saveEnabled(enabled: Boolean)

@@ -3,6 +3,7 @@ package com.nuvio.app.features.player
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import com.nuvio.app.features.watchprogress.WatchProgressClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -145,7 +146,7 @@ fun SubtitleModal(
 
     val subtitleFilePickerLauncher = rememberSubtitleFilePickerLauncher { name, fileUri ->
         val localSubtitle = AddonSubtitle(
-            id = "local_${fileUri.hashCode()}_${System.currentTimeMillis()}",
+            id = "local_${fileUri.hashCode()}_${WatchProgressClock.nowEpochMs()}",
             url = fileUri,
             language = "local",
             display = name,

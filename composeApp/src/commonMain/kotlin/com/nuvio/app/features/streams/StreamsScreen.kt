@@ -37,9 +37,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SearchOff
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
+import com.nuvio.app.features.torrserver.TorrServerConfigRepository
+import com.nuvio.app.features.torrserver.TorrServerRemoteFile
+import com.nuvio.app.features.torrserver.TorrServerService
+import com.nuvio.app.features.torrserver.buildTorrServerMagnet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -165,8 +170,38 @@ fun StreamsScreen(
     val streamLinkCopiedText = stringResource(Res.string.streams_link_copied)
     val noDirectStreamLinkText = stringResource(Res.string.streams_no_direct_link)
     var streamActionsTarget by remember(videoId) { mutableStateOf<StreamItem?>(null) }
+    var torrentPickerStream by remember(videoId) { mutableStateOf<StreamItem?>(null) }
+    var torrentPickerFiles by remember(videoId) { mutableStateOf<List<TorrServerRemoteFile>>(emptyList()) }
+    var isTorrentPickerLoading by remember(videoId) { mutableStateOf(false) }
+    var torrentPickerError by remember(videoId) { mutableStateOf<String?>(null) }
     val downloadScope = rememberCoroutineScope()
     var preferredFilterApplied by remember(videoId) { mutableStateOf(false) }
+
+    LaunchedEffect(torrentPickerStream) {
+        val stream = torrentPickerStream ?: return@LaunchedEffect
+        val infoHash = stream.p2pInfoHash ?: return@LaunchedEffect
+        isTorrentPickerLoading = true
+        torrentPickerError = null
+        torrentPickerFiles = emptyList()
+        try {
+            val magnetOverride = buildTorrServerMagnet(stream, infoHash)
+            val files = TorrServerService.fetchTorrentFiles(
+                infoHash = infoHash,
+                title = title,
+                poster = poster,
+                trackers = stream.p2pTrackers,
+                magnetOverride = magnetOverride,
+            )
+            torrentPickerFiles = files
+            isTorrentPickerLoading = false
+            if (files.isEmpty()) {
+                torrentPickerError = "Không tìm thấy tệp nào trong torrent này"
+            }
+        } catch (e: Exception) {
+            torrentPickerError = e.message ?: "Could not load torrent files"
+            isTorrentPickerLoading = false
+        }
+    }
     val episodeProgress = watchProgressUiState.progressForVideo(
         videoId = videoId,
         parentMetaId = parentMetaId,
@@ -242,6 +277,16 @@ fun StreamsScreen(
     ) {
         val isTabletLayout = maxWidth >= 768.dp
 
+        val handleStreamSelected: (StreamItem, Long?, Float?) -> Unit = { stream, positionMs, progressFraction ->
+            val isTorrServer = stream.addonName == "TorrServer" ||
+                (TorrServerConfigRepository.uiState.value.enabled && stream.p2pInfoHash != null)
+            if (isTorrServer) {
+                torrentPickerStream = stream
+            } else {
+                onStreamSelected(stream, positionMs, progressFraction)
+            }
+        }
+
         if (isTabletLayout) {
             TabletStreamsLayout(
                 isEpisode = isEpisode,
@@ -258,9 +303,7 @@ fun StreamsScreen(
                 appendInstantServiceToDefaultName = debridSettings.canResolvePlayableLinks && !debridSettings.hasCustomStreamFormatting,
                 resumePositionMs = effectiveResumePositionMs,
                 resumeProgressFraction = effectiveResumeProgressFraction,
-                onStreamSelected = { stream, positionMs, progressFraction ->
-                    onStreamSelected(stream, positionMs, progressFraction)
-                },
+                onStreamSelected = handleStreamSelected,
                 onStreamLongPress = { stream -> streamActionsTarget = stream },
                 onRefresh = reloadStreams,
             )
@@ -280,9 +323,7 @@ fun StreamsScreen(
                 appendInstantServiceToDefaultName = debridSettings.canResolvePlayableLinks && !debridSettings.hasCustomStreamFormatting,
                 resumePositionMs = effectiveResumePositionMs,
                 resumeProgressFraction = effectiveResumeProgressFraction,
-                onStreamSelected = { stream, positionMs, progressFraction ->
-                    onStreamSelected(stream, positionMs, progressFraction)
-                },
+                onStreamSelected = handleStreamSelected,
                 onStreamLongPress = { stream -> streamActionsTarget = stream },
                 onRefresh = reloadStreams,
             )
@@ -309,11 +350,22 @@ fun StreamsScreen(
             stream = streamActionsTarget,
             externalPlayerEnabled = playerSettings.externalPlayerEnabled,
             onDismiss = { streamActionsTarget = null },
+            onSelectTorrentFiles = { stream -> torrentPickerStream = stream },
             onCopyLink = { stream ->
                 val directUrl = stream.playableDirectUrl ?: stream.externalOpenUrl
                 if (!directUrl.isNullOrBlank()) {
                     clipboardManager.setText(AnnotatedString(directUrl))
                     NuvioToastController.show(streamLinkCopiedText)
+                } else if (stream.p2pInfoHash != null) {
+                    val magnetUri = stream.p2pInfoHash?.let { hash ->
+                        buildTorrServerMagnet(stream, hash)
+                    } ?: stream.url
+                    if (!magnetUri.isNullOrBlank()) {
+                        clipboardManager.setText(AnnotatedString(magnetUri))
+                        NuvioToastController.show(streamLinkCopiedText)
+                    } else {
+                        NuvioToastController.show(noDirectStreamLinkText)
+                    }
                 } else if (DirectDebridPlaybackResolver.shouldResolveToPlayableStream(stream)) {
                     downloadScope.launch {
                         val resolved = DirectDebridPlaybackResolver.resolveToPlayableStream(
@@ -404,6 +456,28 @@ fun StreamsScreen(
                     effectiveResumePositionMs,
                     effectiveResumeProgressFraction,
                 )
+            },
+        )
+
+        TorrentFilePickerDialog(
+            visible = torrentPickerStream != null,
+            title = torrentPickerStream?.streamLabel ?: title,
+            files = torrentPickerFiles,
+            isLoading = isTorrentPickerLoading,
+            errorMessage = torrentPickerError,
+            targetSeason = seasonNumber,
+            targetEpisode = episodeNumber,
+            matchedFileIndex = remember(torrentPickerFiles, seasonNumber, episodeNumber) {
+                TorrServerService.resolveFileIndex(torrentPickerFiles, seasonNumber, episodeNumber)
+            },
+            onDismissRequest = {
+                torrentPickerStream = null
+            },
+            onFileSelected = { fileId ->
+                val stream = torrentPickerStream ?: return@TorrentFilePickerDialog
+                torrentPickerStream = null
+                val customizedStream = stream.copy(fileIdx = fileId)
+                onStreamSelected(customizedStream, effectiveResumePositionMs, effectiveResumeProgressFraction)
             },
         )
     }
@@ -983,9 +1057,11 @@ private fun LazyListScope.streamSection(
             },
         ) { _, stream ->
             val isSelectable = stream.isSelectableForPlayback(debridEnabled)
+            val isTorrServerEnabled = TorrServerConfigRepository.uiState.value.enabled
             val isUnsupportedTorrentStream =
                 stream.needsLocalDebridResolve &&
                     !AppFeaturePolicy.p2pEnabled &&
+                    !isTorrServerEnabled &&
                     !(debridEnabled && stream.isAddonDebridCandidate)
             StreamCard(
                 stream = stream,
@@ -1002,7 +1078,7 @@ private fun LazyListScope.streamSection(
                     }
                 },
                 onLongClick = {
-                    if (stream.playableDirectUrl != null || stream.shouldOpenExternally || stream.isAddonDebridCandidate) {
+                    if (stream.playableDirectUrl != null || stream.shouldOpenExternally || stream.isAddonDebridCandidate || (stream.p2pInfoHash != null && isTorrServerEnabled)) {
                         onStreamLongPress(stream)
                     }
                 },
@@ -1105,6 +1181,7 @@ private fun StreamActionsSheet(
     onCopyLink: (StreamItem) -> Unit,
     onDownload: (StreamItem) -> Unit,
     onOpen: (StreamItem, openExternally: Boolean) -> Unit,
+    onSelectTorrentFiles: ((StreamItem) -> Unit)? = null,
 ) {
     if (stream == null) return
 
@@ -1162,6 +1239,19 @@ private fun StreamActionsSheet(
                     }
                 },
             )
+            if (stream.p2pInfoHash != null && TorrServerConfigRepository.uiState.value.enabled && onSelectTorrentFiles != null) {
+                NuvioBottomSheetDivider()
+                NuvioBottomSheetActionRow(
+                    icon = Icons.Rounded.FolderOpen,
+                    title = stringResource(Res.string.torrserver_select_file),
+                    onClick = {
+                        onSelectTorrentFiles(stream)
+                        coroutineScope.launch {
+                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                        }
+                    },
+                )
+            }
             NuvioBottomSheetDivider()
             NuvioBottomSheetActionRow(
                 icon = Icons.AutoMirrored.Rounded.OpenInNew,

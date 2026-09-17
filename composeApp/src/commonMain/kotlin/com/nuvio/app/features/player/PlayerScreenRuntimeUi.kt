@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import com.nuvio.app.features.streams.TorrentFilePickerDialog
+import com.nuvio.app.features.torrserver.TorrServerService
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import com.nuvio.app.features.p2p.P2pStreamingState
@@ -598,6 +601,29 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
             submitIntroEndTimeStr = "00:00"
             submitIntroSegmentType = "intro"
             showSubmitIntroModal = false
+        },
+    )
+
+    TorrentFilePickerDialog(
+        visible = torrentPickerStream != null,
+        title = torrentPickerStream?.streamLabel ?: title,
+        files = torrentPickerFiles,
+        isLoading = isTorrentPickerLoading,
+        errorMessage = torrentPickerError,
+        targetSeason = activeSeasonNumber,
+        targetEpisode = activeEpisodeNumber,
+        matchedFileIndex = remember(torrentPickerFiles, activeSeasonNumber, activeEpisodeNumber) {
+            TorrServerService.resolveFileIndex(torrentPickerFiles, activeSeasonNumber, activeEpisodeNumber)
+        },
+        onDismissRequest = {
+            torrentPickerJob?.cancel()
+            torrentPickerStream = null
+        },
+        onFileSelected = { fileId ->
+            val stream = torrentPickerStream ?: return@TorrentFilePickerDialog
+            torrentPickerJob?.cancel()
+            torrentPickerStream = null
+            switchToTorrServerStream(stream.copy(fileIdx = fileId))
         },
     )
 }

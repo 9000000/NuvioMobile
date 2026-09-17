@@ -12,6 +12,8 @@ import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamRequest
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.p2p.P2pStreamingState
+import com.nuvio.app.features.torrserver.TorrServerConfigRepository
+import com.nuvio.app.features.torrserver.TorrServerService
 import com.nuvio.app.features.player.skip.NextEpisodeInfo
 import com.nuvio.app.features.player.skip.PlayerNextEpisodeRules
 import com.nuvio.app.features.player.skip.SkipIntroRepository
@@ -116,11 +118,14 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         if (infoHash == null) {
             p2pResolvedSourceUrl = null
             P2pStreamingEngine.stopStream()
+            TorrServerService.stopStream()
             return@LaunchedEffect
         }
-        if (!P2pSettingsRepository.isVisible || !p2pSettingsUiState.p2pEnabled) {
+        val isTorrServer = TorrServerConfigRepository.uiState.value.enabled
+        if (!isTorrServer && (!P2pSettingsRepository.isVisible || !p2pSettingsUiState.p2pEnabled)) {
             p2pResolvedSourceUrl = null
             P2pStreamingEngine.stopStream()
+            TorrServerService.stopStream()
             return@LaunchedEffect
         }
 
@@ -135,14 +140,27 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         initialLoadCompleted = false
 
         try {
-            val localUrl = P2pStreamingEngine.startStream(
-                P2pStreamRequest(
+            val localUrl = if (isTorrServer) {
+                TorrServerService.startStream(
                     infoHash = infoHash,
                     fileIdx = requestedFileIdx,
                     filename = requestedFilename,
+                    title = activeEpisodeTitle ?: title,
+                    poster = poster,
                     trackers = requestedTrackers,
-                ),
-            )
+                    season = activeSeasonNumber,
+                    episode = activeEpisodeNumber,
+                )
+            } else {
+                P2pStreamingEngine.startStream(
+                    P2pStreamRequest(
+                        infoHash = infoHash,
+                        fileIdx = requestedFileIdx,
+                        filename = requestedFilename,
+                        trackers = requestedTrackers,
+                    ),
+                )
+            }
             if (activeTorrentInfoHash == infoHash && activeTorrentFileIdx == requestedFileIdx) {
                 activeSourceAudioUrl = null
                 activeSourceHeaders = emptyMap()
@@ -346,6 +364,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         onDispose {
             playerController?.clearNowPlayingInfo()
             P2pStreamingEngine.shutdown()
+            TorrServerService.stopStream()
             PlayerStreamsRepository.clearAll()
         }
     }

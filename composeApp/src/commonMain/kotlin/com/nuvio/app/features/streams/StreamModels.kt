@@ -174,8 +174,13 @@ private fun String?.extractBtihInfoHash(): String? {
 fun StreamItem.isSelectableForPlayback(debridEnabled: Boolean): Boolean =
     playableDirectUrl != null ||
         shouldOpenExternally ||
-        (AppFeaturePolicy.p2pEnabled && needsLocalDebridResolve && p2pInfoHash != null) ||
-        (debridEnabled && isAddonDebridCandidate)
+        ((AppFeaturePolicy.p2pEnabled || com.nuvio.app.features.torrserver.TorrServerConfigRepository.uiState.value.enabled) && needsLocalDebridResolve && p2pInfoHash != null) ||
+        (debridEnabled && isAddonDebridCandidate) ||
+        addonName == "TorrServer"
+
+fun StreamItem.isTorrent(): Boolean =
+    p2pInfoHash != null || torrentMagnetUri != null || url?.startsWith("magnet:", ignoreCase = true) == true
+
 
 data class StreamBehaviorHints(
     val bingeGroup: String? = null,
