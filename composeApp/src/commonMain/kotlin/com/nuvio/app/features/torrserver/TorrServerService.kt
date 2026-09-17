@@ -72,7 +72,7 @@ object TorrServerService {
             saveToDb = config.saveToDb,
             username = config.authUsername,
             password = config.authPassword,
-        ) ?: throw P2pStreamingException("Không thể thêm torrent vào TorrServer")
+        ) ?: infoHash.trim().lowercase()
 
         currentHash = hash
         currentServerUrl = serverUrl
@@ -89,7 +89,19 @@ object TorrServerService {
             pass = config.authPassword,
         )
 
-        val streamUrl = TorrServerRemoteApi.buildStreamUrl(
+        val isPreload = config.preload
+
+        val preloadUrl = TorrServerRemoteApi.buildStreamUrl(
+            serverUrl = serverUrl,
+            magnetLink = magnetLink,
+            fileIdx = resolvedIdx,
+            preload = true,
+            save = config.saveToDb,
+            gst = config.gst,
+            hash = hash,
+        )
+
+        val playbackPlayUrl = TorrServerRemoteApi.buildStreamUrl(
             serverUrl = serverUrl,
             magnetLink = magnetLink,
             fileIdx = resolvedIdx,
@@ -98,31 +110,27 @@ object TorrServerService {
             gst = config.gst,
             hash = hash,
         )
-        log.d { "Playback stream URL: $streamUrl" }
 
-        startStatsPolling(serverUrl, hash, streamUrl, config.authUsername, config.authPassword)
+        if (isPreload) {
+            log.d { "Preload enabled: starting preload call with URL (preload param only): $preloadUrl" }
+            startStatsPolling(serverUrl, hash, preloadUrl, config.authUsername, config.authPassword)
 
-        _state.value = P2pStreamingState.Streaming(
-            localUrl = streamUrl,
-            downloadSpeed = 0L,
-            uploadSpeed = 0L,
-            peers = 0,
-            seeds = 0,
-            bufferProgress = 0f,
-            totalProgress = 0f,
-        )
-
-        if (config.preload) {
-            val preloadUrl = TorrServerRemoteApi.buildStreamUrl(
-                serverUrl = serverUrl,
-                magnetLink = magnetLink,
-                fileIdx = resolvedIdx,
-                preload = true,
-                save = config.saveToDb,
-                gst = config.gst,
-                hash = hash,
+            _state.value = P2pStreamingState.Streaming(
+                localUrl = preloadUrl,
+                downloadSpeed = 0L,
+                uploadSpeed = 0L,
+                peers = 0,
+                seeds = 0,
+                bufferProgress = 0f,
+                totalProgress = 0f,
+                isPreloadActive = true,
+                isPreloadReady = false,
+                preloadProgress = 0f,
+                stat = 2,
+                statString = "preloading",
             )
-            preloadJob = scope.launch(Dispatchers.IO) {
+
+            val preloadCallJob = scope.launch(Dispatchers.IO) {
                 try {
                     TorrServerRemoteApi.runPreload(
                         preloadUrl = preloadUrl,
@@ -134,16 +142,48 @@ object TorrServerService {
                     log.w { "TorrServer preload stream ended: ${e.message}" }
                 }
             }
+            preloadJob = preloadCallJob
 
             try {
-                awaitPreloadReady(serverUrl, hash, streamUrl, config.authUsername, config.authPassword)
+                awaitPreloadReady(serverUrl, hash, config.authUsername, config.authPassword)
             } finally {
-                preloadJob?.cancel()
-                preloadJob = null
+                preloadCallJob.cancel()
+                if (preloadJob == preloadCallJob) {
+                    preloadJob = null
+                }
             }
-        }
 
-        streamUrl
+            // Preload hoàn tất và đã nhận được trạng thái active từ TorrServer:
+            // Lúc này mới chuyển sang truyền tham số play để phát
+            log.d { "Preload complete and active received; now passing play parameter: $playbackPlayUrl" }
+            val cur = _state.value
+            if (cur is P2pStreamingState.Streaming) {
+                _state.value = cur.copy(
+                    localUrl = playbackPlayUrl,
+                    isPreloadActive = true,
+                    isPreloadReady = true,
+                    preloadProgress = 1f,
+                )
+            }
+            playbackPlayUrl
+        } else {
+            log.d { "Preload disabled: starting directly with play parameter: $playbackPlayUrl" }
+            startStatsPolling(serverUrl, hash, playbackPlayUrl, config.authUsername, config.authPassword)
+
+            _state.value = P2pStreamingState.Streaming(
+                localUrl = playbackPlayUrl,
+                downloadSpeed = 0L,
+                uploadSpeed = 0L,
+                peers = 0,
+                seeds = 0,
+                bufferProgress = 0f,
+                totalProgress = 0f,
+                isPreloadActive = false,
+                isPreloadReady = true,
+                preloadProgress = 1f,
+            )
+            playbackPlayUrl
+        }
     }
 
     suspend fun fetchTorrentFiles(
@@ -223,7 +263,6 @@ object TorrServerService {
     private suspend fun awaitPreloadReady(
         serverUrl: String,
         hash: String,
-        playbackUrl: String,
         user: String,
         pass: String,
     ) {
@@ -236,27 +275,43 @@ object TorrServerService {
                 password = pass,
             )
             if (stats != null) {
-                val cur = _state.value
-                if (cur is P2pStreamingState.Streaming) {
-                    _state.value = cur.copy(
+                val isReady = stats.isPreloadReady || stats.preloadProgress >= 0.95f
+                val latest = _state.value
+                if (latest is P2pStreamingState.Streaming) {
+                    _state.value = latest.copy(
                         downloadSpeed = stats.downloadSpeed,
                         uploadSpeed = stats.uploadSpeed,
                         peers = stats.activePeers,
                         seeds = stats.connectedSeeders,
-                        bufferProgress = stats.preloadProgress,
-                        totalProgress = stats.preloadProgress,
+                        bufferProgress = if (isReady) 1f else stats.preloadProgress,
+                        totalProgress = if (isReady) 1f else stats.preloadProgress,
                         downloadedBytes = stats.preloadedBytes,
                         deliveredBytes = stats.loadedSize,
+                        preloadedBytes = stats.preloadedBytes,
+                        preloadSize = stats.preloadSize,
+                        isPreloadActive = true,
+                        isPreloadReady = isReady,
+                        preloadProgress = if (isReady) 1f else stats.preloadProgress,
+                        stat = stats.stat,
+                        statString = stats.statString,
                     )
                 }
-                if (stats.isPreloadReady) {
-                    log.d { "TorrServer preload is ready; handing stream to player" }
+                if (isReady) {
+                    log.d { "TorrServer preload reached 95% (or active): handing stream to player" }
                     return
                 }
             }
             delay(300L)
         }
         log.w { "TorrServer preload timeout (60s); proceeding with playback" }
+        val latest = _state.value
+        if (latest is P2pStreamingState.Streaming) {
+            _state.value = latest.copy(
+                isPreloadActive = true,
+                isPreloadReady = true,
+                preloadProgress = 1f,
+            )
+        }
     }
 
     private fun startStatsPolling(
@@ -278,6 +333,7 @@ object TorrServerService {
                     )
                     val cur = _state.value
                     if (stats != null && cur is P2pStreamingState.Streaming) {
+                        val ready = stats.isPreloadReady || stats.preloadProgress >= 0.95f || cur.isPreloadReady
                         _state.value = cur.copy(
                             downloadSpeed = stats.downloadSpeed,
                             uploadSpeed = stats.uploadSpeed,
@@ -287,6 +343,13 @@ object TorrServerService {
                             totalProgress = stats.preloadProgress,
                             downloadedBytes = stats.preloadedBytes,
                             deliveredBytes = stats.loadedSize,
+                            preloadedBytes = stats.preloadedBytes,
+                            preloadSize = stats.preloadSize,
+                            isPreloadActive = cur.isPreloadActive,
+                            isPreloadReady = ready,
+                            preloadProgress = if (ready) 1f else stats.preloadProgress,
+                            stat = stats.stat,
+                            statString = stats.statString,
                         )
                     }
                 } catch (_: CancellationException) {
@@ -341,12 +404,18 @@ object TorrServerService {
         }
 
         if (files.isEmpty()) {
-            val fallback = requestedIdx?.plus(1) ?: 1
-            log.w { "No files after metadata timeout, guessing index $fallback" }
+            val fallback = requestedIdx ?: 1
+            log.w { "No files after metadata timeout, using index $fallback" }
             return fallback
         }
 
         log.d { "Torrent has ${files.size} files" }
+
+        // Strategy 0: Exact match by requested file ID (e.g. from TorrentFilePickerDialog)
+        if (requestedIdx != null && files.any { it.id == requestedIdx }) {
+            log.d { "File resolved by exact file ID: id=$requestedIdx" }
+            return requestedIdx
+        }
 
         // Strategy 1: Match by filename
         if (!filename.isNullOrBlank()) {

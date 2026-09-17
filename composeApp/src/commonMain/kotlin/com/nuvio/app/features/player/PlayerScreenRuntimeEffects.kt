@@ -121,6 +121,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             TorrServerService.stopStream()
             return@LaunchedEffect
         }
+        TorrServerConfigRepository.ensureLoaded()
         val isTorrServer = TorrServerConfigRepository.uiState.value.enabled
         if (!isTorrServer && (!P2pSettingsRepository.isVisible || !p2pSettingsUiState.p2pEnabled)) {
             p2pResolvedSourceUrl = null

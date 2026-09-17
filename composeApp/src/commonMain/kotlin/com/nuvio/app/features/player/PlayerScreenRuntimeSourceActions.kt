@@ -51,8 +51,13 @@ internal fun PlayerScreenRuntime.resolveDebridForPlayer(
 internal fun PlayerScreenRuntime.p2pSentinelUrl(infoHash: String, fileIdx: Int?): String =
     "torrent://$infoHash${fileIdx?.let { "?index=$it" }.orEmpty()}"
 
-internal fun PlayerScreenRuntime.isP2pStream(stream: StreamItem): Boolean =
-    stream.needsLocalDebridResolve && stream.p2pInfoHash != null
+internal fun PlayerScreenRuntime.isP2pStream(stream: StreamItem): Boolean {
+    TorrServerConfigRepository.ensureLoaded()
+    val isTorr = stream.addonName == "TorrServer" ||
+        (TorrServerConfigRepository.uiState.value.enabled &&
+            (stream.p2pInfoHash != null || stream.isTorrentStream))
+    return isTorr || (stream.needsLocalDebridResolve && stream.p2pInfoHash != null)
+}
 
 internal fun PlayerScreenRuntime.openExternalSourceUrl(stream: StreamItem): Boolean {
     if (!stream.shouldOpenExternally) return false
@@ -164,8 +169,11 @@ internal fun PlayerScreenRuntime.saveP2pStreamForReuse(
 
 internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
     val infoHash = stream.p2pInfoHash ?: return
-    if (!P2pSettingsRepository.isVisible) return
-    if (!P2pSettingsRepository.uiState.value.p2pEnabled) {
+    TorrServerConfigRepository.ensureLoaded()
+    val isTorr = stream.addonName == "TorrServer" ||
+        TorrServerConfigRepository.uiState.value.enabled
+    if (!isTorr && !P2pSettingsRepository.isVisible) return
+    if (!isTorr && !P2pSettingsRepository.uiState.value.p2pEnabled) {
         P2pSettingsRepository.setP2pEnabled(true)
     }
     val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
@@ -206,8 +214,11 @@ internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
     isAutoPlay: Boolean = false,
 ) {
     val infoHash = stream.p2pInfoHash ?: return
-    if (!P2pSettingsRepository.isVisible) return
-    if (!P2pSettingsRepository.uiState.value.p2pEnabled) {
+    TorrServerConfigRepository.ensureLoaded()
+    val isTorr = stream.addonName == "TorrServer" ||
+        TorrServerConfigRepository.uiState.value.enabled
+    if (!isTorr && !P2pSettingsRepository.isVisible) return
+    if (!isTorr && !P2pSettingsRepository.uiState.value.p2pEnabled) {
         P2pSettingsRepository.setP2pEnabled(true)
     }
     resetEpisodePanelAndNextEpisodeState()

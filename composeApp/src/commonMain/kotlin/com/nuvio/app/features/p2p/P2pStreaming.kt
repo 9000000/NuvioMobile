@@ -225,6 +225,13 @@ sealed class P2pStreamingState {
         val downloadedBytes: Long = 0L,
         val verifiedBytes: Long = 0L,
         val deliveredBytes: Long = 0L,
+        val preloadedBytes: Long = 0L,
+        val preloadSize: Long = 0L,
+        val isPreloadActive: Boolean = false,
+        val isPreloadReady: Boolean = true,
+        val preloadProgress: Float = 0f,
+        val stat: Int = 0,
+        val statString: String? = null,
     ) : P2pStreamingState()
 
     data class Error(val message: String) : P2pStreamingState()
@@ -242,10 +249,11 @@ expect object P2pStreamingEngine {
 }
 
 internal fun formatP2pSpeed(bytesPerSec: Long): String {
+    val bitsPerSec = bytesPerSec * 8.0
     return when {
-        bytesPerSec >= 1_048_576 -> "${(bytesPerSec / 1_048_576.0).formatOneDecimal()} MB/s"
-        bytesPerSec >= 1_024 -> "${(bytesPerSec / 1_024.0).formatNoDecimal()} KB/s"
-        else -> "$bytesPerSec B/s"
+        bitsPerSec >= 1_000_000.0 -> "${(bitsPerSec / 1_000_000.0).formatOneDecimal()} Mbps"
+        bitsPerSec >= 1_000.0 -> "${(bitsPerSec / 1_000.0).formatNoDecimal()} Kbps"
+        else -> "${bitsPerSec.toLong()} bps"
     }
 }
 

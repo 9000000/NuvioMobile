@@ -236,7 +236,7 @@ internal fun StreamDestination(
             serverUrl = torrConfig.serverUrl,
             magnetLink = magnetUri,
             fileIdx = fileIdx,
-            preload = false,
+            preload = torrConfig.preload,
             save = torrConfig.saveToDb,
             gst = torrConfig.gst,
             hash = infoHash,
@@ -305,7 +305,12 @@ internal fun StreamDestination(
 
         if (!forceInternal && (forceExternal || playerSettings.externalPlayerEnabled)) {
             streamRouteScope.launch {
-                openExternalPlayback(playerLaunch)
+                val externalPlaybackUrl = if (torrConfig.preload) {
+                    TorrServerRemoteApi.toPlaybackUrl(torrStreamUrl)
+                } else {
+                    torrStreamUrl
+                }
+                openExternalPlayback(playerLaunch.copy(sourceUrl = externalPlaybackUrl))
                 StreamsRepository.cancelLoading()
             }
             return
@@ -333,7 +338,9 @@ internal fun StreamDestination(
             if (isAutoPlay) StreamsRepository.skipAutoPlayStream(stream)
             return
         }
-        if (TorrServerConfigRepository.uiState.value.enabled) {
+        val isTorrServer = stream.addonName == "TorrServer" ||
+            TorrServerConfigRepository.uiState.value.enabled
+        if (isTorrServer) {
             openTorrServerStream(
                 stream = stream,
                 resolvedResumePositionMs = resolvedResumePositionMs,
@@ -512,8 +519,11 @@ internal fun StreamDestination(
         } else {
             selectedStream
         }
-        val sourceUrl = stream.playableDirectUrl
-        if (sourceUrl == null && stream.needsLocalDebridResolve && stream.p2pInfoHash != null) {
+        val isTorrServerStreamCandidate = stream.addonName == "TorrServer" ||
+            (com.nuvio.app.features.torrserver.TorrServerConfigRepository.uiState.value.enabled &&
+                (stream.p2pInfoHash != null || stream.isTorrentStream))
+        val isP2pStreamCandidate = stream.p2pInfoHash != null || stream.isTorrentStream
+        if (isTorrServerStreamCandidate || isP2pStreamCandidate) {
             autoPlayHandled = true
             requestOrOpenP2pStream(
                 stream = stream,
@@ -526,6 +536,7 @@ internal fun StreamDestination(
             StreamsRepository.consumeAutoPlay()
             return@LaunchedEffect
         }
+        val sourceUrl = stream.playableDirectUrl
         if (sourceUrl == null) {
             StreamsRepository.skipAutoPlayStream(selectedStream)
             return@LaunchedEffect
@@ -660,7 +671,12 @@ internal fun StreamDestination(
             }
             return
         }
-        if (stream.needsLocalDebridResolve && stream.p2pInfoHash != null) {
+        TorrServerConfigRepository.ensureLoaded()
+        val isTorrServerStream = stream.addonName == "TorrServer" ||
+            (TorrServerConfigRepository.uiState.value.enabled &&
+                (stream.p2pInfoHash != null || stream.isTorrentStream))
+        val isP2pStream = stream.p2pInfoHash != null || stream.isTorrentStream
+        if (isTorrServerStream || isP2pStream) {
             requestOrOpenP2pStream(
                 stream = stream,
                 resolvedResumePositionMs = resolvedResumePositionMs,

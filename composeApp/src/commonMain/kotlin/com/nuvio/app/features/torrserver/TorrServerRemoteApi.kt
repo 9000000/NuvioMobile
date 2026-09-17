@@ -255,9 +255,45 @@ object TorrServerRemoteApi {
         return "$base/play/$hash/$fileIdx"
     }
 
-    fun buildGstStreamUrl(serverUrl: String, hash: String, fileIdx: Int): String {
-        val base = serverUrl.trim().trimEnd('/')
-        return "$base/gst/$hash/master.m3u8?index=$fileIdx"
+    fun hasPreloadParam(url: String): Boolean =
+        url.contains("preload", ignoreCase = true)
+
+    fun toPlaybackUrl(url: String): String {
+        if (!hasPreloadParam(url)) {
+            return if (!url.contains("play", ignoreCase = true) && url.contains("/stream?")) {
+                if (url.endsWith("?") || url.endsWith("&")) "${url}play" else "$url&play"
+            } else {
+                url
+            }
+        }
+        var result = url
+            .replace("&preload", "")
+            .replace("?preload&", "?")
+            .replace("?preload", "?")
+        if (!result.contains("play", ignoreCase = true)) {
+            result = if (result.contains("?")) {
+                if (result.endsWith("?") || result.endsWith("&")) "${result}play" else "$result&play"
+            } else {
+                "$result?play"
+            }
+        }
+        return result.replace("&&", "&").trimEnd('&', '?')
+    }
+
+    fun isTorrServerUrl(url: String): Boolean {
+        if (url.isBlank()) return false
+        if (url.contains(":8091") || url.contains(":8090")) {
+            if (url.contains("/stream") || url.contains("/play/") || url.contains("/gst/")) {
+                return true
+            }
+        }
+        if (url.contains("/stream?link=") || (url.contains("/stream?") && url.contains("link="))) {
+            return true
+        }
+        if (url.contains("/stream?") && url.contains("play")) {
+            return true
+        }
+        return false
     }
 
     private fun urlEncode(value: String): String {

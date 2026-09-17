@@ -63,6 +63,18 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         p2pStats != null -> {
             if (p2pSettingsUiState.hideTorrentStats) {
                 null
+            } else if (p2pStats.isPreloadActive && !p2pStats.isPreloadReady && (p2pStats.preloadProgress < 1f || p2pStats.stat == 2)) {
+                val percentStr = when {
+                    p2pStats.preloadProgress > 0f -> "${(p2pStats.preloadProgress * 100).toInt()}%"
+                    p2pStats.stat == 2 -> "0%"
+                    p2pStats.stat == 1 -> p2pStats.statString ?: "0%"
+                    else -> "0%"
+                }
+                listOfNotNull(
+                    percentStr,
+                    p2pPeerInfo?.takeIf { it.isNotBlank() },
+                    p2pDownloadSpeed?.takeIf { p2pStats.downloadSpeed > 0L } ?: p2pDownloadSpeed,
+                ).joinToString(" · ")
             } else {
                 org.jetbrains.compose.resources.stringResource(
                     nuvio.composeapp.generated.resources.Res.string.player_torrent_loading_status,
@@ -80,6 +92,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         .coerceAtLeast(0L)
     val p2pInitialLoadingProgress = when {
         !isP2pPlaybackActive || initialLoadCompleted || p2pStats == null -> null
+        p2pStats.isPreloadActive && !p2pStats.isPreloadReady -> p2pStats.preloadProgress
         else -> p2pInitialLoadingProgress(
             bufferedAheadMs = bufferedAheadMs,
             downloadedBytes = p2pStats.downloadedBytes,
@@ -363,6 +376,7 @@ private fun BoxScope.RenderPlaybackOverlays(
     p2pRebufferProgress: Float?,
 ) {
     runtime.run {
+        val isP2pActive = activeTorrentInfoHash != null
         PlayerPlaybackOverlays(
             playerControlsLocked = playerControlsLocked,
             lockedOverlayVisible = lockedOverlayVisible,
@@ -371,7 +385,7 @@ private fun BoxScope.RenderPlaybackOverlays(
         metrics = metrics,
         horizontalSafePadding = horizontalSafePadding,
         onUnlock = { unlockPlayerControls() },
-        showOpeningOverlay = playerSettingsUiState.showLoadingOverlay && !initialLoadCompleted && errorMessage == null,
+        showOpeningOverlay = (isP2pActive || playerSettingsUiState.showLoadingOverlay) && !initialLoadCompleted && errorMessage == null,
         backdropArtwork = background ?: poster,
         logo = logo,
         title = title,
@@ -379,7 +393,7 @@ private fun BoxScope.RenderPlaybackOverlays(
             flushWatchProgress()
             args.onBack()
         },
-        openingLoadingMessage = if (playerSettingsUiState.showPlayerLoadingStatus) {
+        openingLoadingMessage = if (isP2pActive || playerSettingsUiState.showPlayerLoadingStatus) {
             p2pInitialLoadingMessage ?: playerLoadingStatusMessage(
                 showStatus = true,
                 controllerReady = playerController != null,

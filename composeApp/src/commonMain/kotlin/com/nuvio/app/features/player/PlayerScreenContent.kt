@@ -50,7 +50,10 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
     }.collectAsStateWithLifecycle()
     val p2pStreamingState by P2pStreamingEngine.state.collectAsStateWithLifecycle()
     val torrServerStreamingState by com.nuvio.app.features.torrserver.TorrServerService.state.collectAsStateWithLifecycle()
-    val torrServerConfig by com.nuvio.app.features.torrserver.TorrServerConfigRepository.uiState.collectAsStateWithLifecycle()
+    val torrServerConfig by remember {
+        com.nuvio.app.features.torrserver.TorrServerConfigRepository.ensureLoaded()
+        com.nuvio.app.features.torrserver.TorrServerConfigRepository.uiState
+    }.collectAsStateWithLifecycle()
     val metaScreenSettingsUiState by remember {
         MetaScreenSettingsRepository.ensureLoaded()
         MetaScreenSettingsRepository.uiState

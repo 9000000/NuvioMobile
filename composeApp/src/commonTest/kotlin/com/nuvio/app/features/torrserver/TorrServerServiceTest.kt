@@ -51,6 +51,31 @@ class TorrServerServiceTest {
         )
         assertTrue(readyBySize.isPreloadReady)
         assertEquals(1.0f, readyBySize.preloadProgress)
+
+        // 94% (47MB / 50MB) -> chưa sẵn sàng
+        val threshold94 = TorrServerRemoteStatus(
+            hash = "123456",
+            title = "Test",
+            stat = 2,
+            statString = "Preloading",
+            torrentSize = 1_000_000_000L,
+            preloadedBytes = 47_000_000L,
+            preloadSize = 50_000_000L,
+        )
+        assertFalse(threshold94.isPreloadReady)
+
+        // 95% (47.5MB / 50MB) -> chuyển sang play ngay lập tức
+        val threshold95 = TorrServerRemoteStatus(
+            hash = "123456",
+            title = "Test",
+            stat = 2,
+            statString = "Preloading",
+            torrentSize = 1_000_000_000L,
+            preloadedBytes = 47_500_000L,
+            preloadSize = 50_000_000L,
+        )
+        assertTrue(threshold95.isPreloadReady)
+        assertEquals(1.0f, threshold95.preloadProgress)
     }
 
     @Test
@@ -98,4 +123,41 @@ class TorrServerServiceTest {
         assertTrue(magnet.contains("play"))
         assertFalse(magnet.contains("preload"))
     }
+
+    @Test
+    fun testPreloadUrlHelpers() {
+        val preloadUrl = "http://127.0.0.1:8090/stream?link=magnet%3A%3Fxt%3Durn%3Abtih%3Aabc&index=1&preload"
+        assertTrue(TorrServerRemoteApi.hasPreloadParam(preloadUrl))
+        assertTrue(TorrServerRemoteApi.isTorrServerUrl(preloadUrl))
+
+        val playUrl = TorrServerRemoteApi.toPlaybackUrl(preloadUrl)
+        assertFalse(TorrServerRemoteApi.hasPreloadParam(playUrl))
+        assertTrue(playUrl.contains("play"))
+        assertTrue(playUrl.contains("index=1"))
+
+        val alreadyPlayUrl = "http://127.0.0.1:8090/stream?link=magnet%3A%3Fxt%3Durn%3Abtih%3Aabc&index=1&play"
+        assertEquals(alreadyPlayUrl, TorrServerRemoteApi.toPlaybackUrl(alreadyPlayUrl))
+    }
+
+    @Test
+    fun testBuildTorrServerUrlPreloadVsPlay() {
+        val preloadUrl = TorrServerRemoteApi.buildStreamUrl(
+            serverUrl = "http://127.0.0.1:8090",
+            magnetLink = "magnet:?xt=urn:btih:0123456789abcdef",
+            fileIdx = 1,
+            preload = true,
+        )
+        assertTrue(preloadUrl.contains("&preload"))
+        assertFalse(preloadUrl.contains("play"))
+
+        val playUrl = TorrServerRemoteApi.buildStreamUrl(
+            serverUrl = "http://127.0.0.1:8090",
+            magnetLink = "magnet:?xt=urn:btih:0123456789abcdef",
+            fileIdx = 1,
+            preload = false,
+        )
+        assertTrue(playUrl.contains("&play"))
+        assertFalse(playUrl.contains("preload"))
+    }
 }
+

@@ -54,18 +54,21 @@ data class TorrServerRemoteStatus(
     val totalPeers: Int = 0,
     val files: List<TorrServerRemoteFile> = emptyList(),
 ) {
+    val rawPreloadProgress: Float
+        get() {
+            val target = if (preloadSize > 0) preloadSize else if (stat == 2 && preloadedBytes > 0) 33_554_432L else 0L
+            return if (target > 0) (preloadedBytes.toFloat() / target).coerceIn(0f, 1f) else 0f
+        }
+
     val isPreloadReady: Boolean
         get() = (preloadSize > 0 && preloadedBytes >= preloadSize * 95 / 100) ||
+            rawPreloadProgress >= 0.95f ||
             stat == 3 ||
             statString.equals("active", ignoreCase = true) ||
             statString.equals("Torrent working", ignoreCase = true)
 
     val preloadProgress: Float
-        get() {
-            if (isPreloadReady) return 1f
-            val target = if (preloadSize > 0) preloadSize else if (stat == 2 && preloadedBytes > 0) 33_554_432L else 0L
-            return if (target > 0) (preloadedBytes.toFloat() / target).coerceIn(0f, 1f) else 0f
-        }
+        get() = if (isPreloadReady) 1f else rawPreloadProgress
 }
 
 fun torrServerDisplayTitle(title: String?): String? =
@@ -73,6 +76,7 @@ fun torrServerDisplayTitle(title: String?): String? =
 
 
 internal expect object TorrServerSettingsStorage {
+    fun isInitialized(): Boolean
     fun loadEnabled(): Boolean?
     fun saveEnabled(enabled: Boolean)
     fun loadServerUrl(): String?
@@ -104,10 +108,20 @@ object TorrServerConfigRepository {
 
     fun ensureLoaded() {
         if (hasLoaded) return
+        if (!TorrServerSettingsStorage.isInitialized()) return
         loadFromDisk()
     }
 
+    /** Reload all settings from persistent storage (e.g. after a profile switch). */
+    fun onProfileChanged() {
+        hasLoaded = false
+        if (TorrServerSettingsStorage.isInitialized()) {
+            loadFromDisk()
+        }
+    }
+
     private fun loadFromDisk() {
+        if (!TorrServerSettingsStorage.isInitialized()) return
         hasLoaded = true
         enabled = TorrServerSettingsStorage.loadEnabled() ?: false
         serverUrl = TorrServerSettingsStorage.loadServerUrl() ?: "http://127.0.0.1:8090"
@@ -117,7 +131,6 @@ object TorrServerConfigRepository {
         saveToDb = TorrServerSettingsStorage.loadSaveToDb() ?: false
         gst = TorrServerSettingsStorage.loadGst() ?: false
         publish()
-
     }
 
     fun setEnabled(enabled: Boolean) {

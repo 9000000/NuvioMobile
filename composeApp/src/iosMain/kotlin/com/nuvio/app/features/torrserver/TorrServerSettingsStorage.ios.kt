@@ -12,6 +12,8 @@ internal actual object TorrServerSettingsStorage {
     private const val saveToDbKey = "torrserver_save_to_db"
     private const val gstKey = "torrserver_gst"
 
+    actual fun isInitialized(): Boolean = true
+
     actual fun loadEnabled(): Boolean? = loadBoolean(enabledKey)
     actual fun saveEnabled(enabled: Boolean) = saveBoolean(enabledKey, enabled)
 

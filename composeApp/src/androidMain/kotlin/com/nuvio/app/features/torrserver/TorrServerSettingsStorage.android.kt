@@ -20,6 +20,8 @@ internal actual object TorrServerSettingsStorage {
         preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
     }
 
+    actual fun isInitialized(): Boolean = preferences != null
+
     actual fun loadEnabled(): Boolean? = loadBoolean(enabledKey)
     actual fun saveEnabled(enabled: Boolean) = saveBoolean(enabledKey, enabled)
 
@@ -43,28 +45,37 @@ internal actual object TorrServerSettingsStorage {
 
     private fun loadBoolean(keyBase: String): Boolean? =
         preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(keyBase)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
+            val scopedKey = ProfileScopedKey.of(keyBase)
+            when {
+                sharedPreferences.contains(scopedKey) -> sharedPreferences.getBoolean(scopedKey, false)
+                sharedPreferences.contains(keyBase) -> sharedPreferences.getBoolean(keyBase, false)
+                else -> null
             }
         }
 
     private fun saveBoolean(keyBase: String, value: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(keyBase), value)
-            ?.apply()
+        preferences?.edit()?.apply {
+            putBoolean(ProfileScopedKey.of(keyBase), value)
+            putBoolean(keyBase, value)
+            apply()
+        }
     }
 
     private fun loadString(keyBase: String): String? =
-        preferences?.getString(ProfileScopedKey.of(keyBase), null)
+        preferences?.let { sharedPreferences ->
+            val scopedKey = ProfileScopedKey.of(keyBase)
+            when {
+                sharedPreferences.contains(scopedKey) -> sharedPreferences.getString(scopedKey, null)
+                sharedPreferences.contains(keyBase) -> sharedPreferences.getString(keyBase, null)
+                else -> null
+            }
+        }
 
     private fun saveString(keyBase: String, value: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(keyBase), value)
-            ?.apply()
+        preferences?.edit()?.apply {
+            putString(ProfileScopedKey.of(keyBase), value)
+            putString(keyBase, value)
+            apply()
+        }
     }
 }

@@ -90,6 +90,7 @@ object ProfileRepository {
         loadedCacheForUserId = stored.userId
         applyStoredPayload(stored)
         ThemeSettingsRepository.onProfileChanged()
+        com.nuvio.app.features.torrserver.TorrServerConfigRepository.onProfileChanged()
         return _state.value.profiles.isNotEmpty()
     }
 
@@ -173,6 +174,7 @@ object ProfileRepository {
         PlayerSettingsRepository.onProfileChanged()
         StreamBadgeSettingsRepository.onProfileChanged()
         P2pSettingsRepository.onProfileChanged()
+        com.nuvio.app.features.torrserver.TorrServerConfigRepository.onProfileChanged()
         HomeCatalogSettingsRepository.onProfileChanged()
         HomeRepository.clear()
         MetaScreenSettingsRepository.onProfileChanged()
