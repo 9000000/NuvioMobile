@@ -68,6 +68,7 @@ internal class PlayerScreenRuntime(
 
     var playerSettingsUiState: PlayerSettingsUiState = PlayerSettingsUiState()
     var p2pSettingsUiState by mutableStateOf(P2pSettingsUiState())
+    var isTorrServerEnabled by mutableStateOf(false)
     var p2pStreamingState by mutableStateOf<P2pStreamingState>(P2pStreamingState.Idle)
     var metaScreenSettingsUiState: MetaScreenSettingsUiState = MetaScreenSettingsUiState()
     var watchedUiState: WatchedUiState = WatchedUiState()

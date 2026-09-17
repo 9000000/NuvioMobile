@@ -90,6 +90,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         runtime.gestureController = rememberPlayerGestureController()
         runtime.playerSettingsUiState = playerSettingsUiState
         runtime.p2pSettingsUiState = p2pSettingsUiState
+        runtime.isTorrServerEnabled = torrServerConfig.enabled
         runtime.p2pStreamingState = if (torrServerConfig.enabled) torrServerStreamingState else p2pStreamingState
         runtime.metaScreenSettingsUiState = metaScreenSettingsUiState
         runtime.watchedUiState = watchedUiState

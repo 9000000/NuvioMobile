@@ -54,6 +54,12 @@ import nuvio.composeapp.generated.resources.compose_player_loading_lines
 import nuvio.composeapp.generated.resources.compose_player_no_subtitle_lines_found
 import nuvio.composeapp.generated.resources.compose_player_outline
 import nuvio.composeapp.generated.resources.compose_player_outline_color
+import nuvio.composeapp.generated.resources.compose_player_outline_width
+import nuvio.composeapp.generated.resources.sub_font_phimmoi
+import nuvio.composeapp.generated.resources.sub_font_inter
+import nuvio.composeapp.generated.resources.sub_font_opensans
+import nuvio.composeapp.generated.resources.sub_font_dmsans
+import nuvio.composeapp.generated.resources.sub_font_oswald
 import nuvio.composeapp.generated.resources.compose_player_reload
 import nuvio.composeapp.generated.resources.compose_player_reset
 import nuvio.composeapp.generated.resources.compose_player_reset_defaults
@@ -121,6 +127,11 @@ fun SubtitleStylePanel(
                 "Sans-Serif" to stringResource(Res.string.compose_player_font_sans),
                 "Serif" to stringResource(Res.string.compose_player_font_serif),
                 "Monospace" to stringResource(Res.string.compose_player_font_mono),
+                "PhimMoi" to stringResource(Res.string.sub_font_phimmoi),
+                "Inter" to stringResource(Res.string.sub_font_inter),
+                "Open Sans" to stringResource(Res.string.sub_font_opensans),
+                "DM Sans" to stringResource(Res.string.sub_font_dmsans),
+                "Oswald" to stringResource(Res.string.sub_font_oswald),
             )
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -205,19 +216,35 @@ fun SubtitleStylePanel(
                 enabled = style.outlineEnabled,
                 onClick = { onStyleChanged(style.copy(outlineEnabled = !style.outlineEnabled)) },
             )
-            Text(
-                text = stringResource(Res.string.compose_player_outline_color),
-                color = Color.White.copy(alpha = 0.72f),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            SubtitleColorPicker(
-                colors = SubtitleOutlineColorSwatches,
-                selectedColor = style.outlineColor,
-                enabled = style.outlineEnabled,
-                onColorSelected = { color ->
-                    onStyleChanged(style.copy(outlineEnabled = true, outlineColor = color))
-                },
-            )
+            if (style.outlineEnabled) {
+                Text(
+                    text = stringResource(Res.string.compose_player_outline_color),
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                SubtitleColorPicker(
+                    colors = SubtitleOutlineColorSwatches,
+                    selectedColor = style.outlineColor,
+                    enabled = style.outlineEnabled,
+                    onColorSelected = { color ->
+                        onStyleChanged(style.copy(outlineEnabled = true, outlineColor = color))
+                    },
+                )
+                Text(
+                    text = stringResource(Res.string.compose_player_outline_width),
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                SubtitleStyleStepper(
+                    value = "${style.outlineWidth}px",
+                    onDecrease = {
+                        onStyleChanged(style.copy(outlineWidth = (style.outlineWidth - 1).coerceAtLeast(1)))
+                    },
+                    onIncrease = {
+                        onStyleChanged(style.copy(outlineWidth = (style.outlineWidth + 1).coerceAtMost(50)))
+                    },
+                )
+            }
         }
 
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_bottom_offset)) {

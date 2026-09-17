@@ -28,9 +28,13 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     val isEpisode = activeSeasonNumber != null && activeEpisodeNumber != null
     val currentGestureFeedback = liveGestureFeedback ?: gestureFeedback
     val isP2pPlaybackActive = activeTorrentInfoHash != null
+    val isTorrServer = isTorrServerEnabled ||
+        (p2pStreamingState as? P2pStreamingState.Streaming)?.isPreloadActive == true ||
+        activeProviderName == "TorrServer" ||
+        com.nuvio.app.features.torrserver.TorrServerConfigRepository.uiState.value.enabled
     val p2pConnecting = p2pStreamingState as? P2pStreamingState.Connecting
     val p2pStats = p2pStreamingState as? P2pStreamingState.Streaming
-    val p2pPeerInfo = p2pStats?.let { stats ->
+    val p2pPeerInfo = if (isTorrServer) null else p2pStats?.let { stats ->
         org.jetbrains.compose.resources.stringResource(
             nuvio.composeapp.generated.resources.Res.string.player_torrent_peer_info,
             stats.seeds,
@@ -39,7 +43,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     }
     val p2pDownloadSpeed = p2pStats?.let { formatP2pSpeed(it.downloadSpeed) }
     val p2pLoadingBytes = p2pStats?.let { maxOf(it.downloadedBytes, it.deliveredBytes) } ?: 0L
-    val connectingPeerInfo = p2pConnecting?.let { state ->
+    val connectingPeerInfo = if (isTorrServer) null else p2pConnecting?.let { state ->
         org.jetbrains.compose.resources.stringResource(
             nuvio.composeapp.generated.resources.Res.string.player_torrent_peer_info,
             state.seeds,
@@ -51,6 +55,11 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         p2pConnecting != null -> {
             if (p2pSettingsUiState.hideTorrentStats) {
                 p2pConnectingPhaseLabel(p2pConnecting.phase)
+            } else if (isTorrServer) {
+                listOfNotNull(
+                    p2pConnectingPhaseLabel(p2pConnecting.phase),
+                    formatP2pSpeed(p2pConnecting.downloadSpeed).takeIf { p2pConnecting.downloadSpeed > 0L },
+                ).joinToString(" · ")
             } else {
                 org.jetbrains.compose.resources.stringResource(
                     nuvio.composeapp.generated.resources.Res.string.player_torrent_connecting_status,
@@ -75,6 +84,19 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     p2pPeerInfo?.takeIf { it.isNotBlank() },
                     p2pDownloadSpeed?.takeIf { p2pStats.downloadSpeed > 0L } ?: p2pDownloadSpeed,
                 ).joinToString(" · ")
+            } else if (isTorrServer) {
+                val mbStr = formatP2pMegabytes(p2pLoadingBytes).takeIf { p2pLoadingBytes > 0L }
+                val statusParts = listOfNotNull(
+                    mbStr,
+                    p2pDownloadSpeed?.takeIf { p2pStats.downloadSpeed > 0L } ?: p2pDownloadSpeed,
+                )
+                if (statusParts.isNotEmpty()) {
+                    statusParts.joinToString(" · ")
+                } else {
+                    org.jetbrains.compose.resources.stringResource(
+                        nuvio.composeapp.generated.resources.Res.string.player_loading_buffering,
+                    )
+                }
             } else {
                 org.jetbrains.compose.resources.stringResource(
                     nuvio.composeapp.generated.resources.Res.string.player_torrent_loading_status,
@@ -109,7 +131,14 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         else -> {
             val bufferedSeconds = ((playbackSnapshot.bufferedPositionMs - playbackSnapshot.positionMs) / 1000L)
                 .coerceAtLeast(0L)
-            "${bufferedSeconds}s buffered · ${p2pPeerInfo.orEmpty()} · ${p2pDownloadSpeed.orEmpty()}"
+            if (isTorrServer) {
+                listOfNotNull(
+                    "${bufferedSeconds}s buffered",
+                    p2pDownloadSpeed?.takeIf { (p2pStats?.downloadSpeed ?: 0L) > 0L } ?: p2pDownloadSpeed,
+                ).joinToString(" · ")
+            } else {
+                "${bufferedSeconds}s buffered · ${p2pPeerInfo.orEmpty()} · ${p2pDownloadSpeed.orEmpty()}"
+            }
         }
     }
     val p2pRebufferProgress = when {

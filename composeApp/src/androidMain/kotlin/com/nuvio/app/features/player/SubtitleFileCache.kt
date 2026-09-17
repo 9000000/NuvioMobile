@@ -74,7 +74,7 @@ object SubtitleFileCache {
             val dir = cacheDir ?: return@withContext null
             val extension = guessExtension(input.url)
             val filename = sanitizeFilename("${input.lang}_${input.name}.$extension")
-            val file = File(dir, filename)
+            val file = File(dir, filename).canonicalFile
 
             try {
                 if (input.url.startsWith("file:")) {
@@ -88,7 +88,7 @@ object SubtitleFileCache {
                         return@withContext null
                     }
 
-                    val body = response.body ?: return@withContext null
+                    val body = response.body
                     file.outputStream().use { output ->
                         body.byteStream().copyTo(output)
                     }

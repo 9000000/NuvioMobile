@@ -2323,4 +2323,22 @@
     <string name="torrserver_check_gst">Check GStreamer Support</string>
     <string name="torrserver_select_file">Select Torrent File</string>
     <string name="torrserver_files_title">Files in Torrent</string>
+    <!-- Subtitle Custom Font & Outline -->
+    <string name="settings_playback_subtitle_font">Subtitle Font</string>
+    <string name="settings_playback_subtitle_outline_width">Outline Width</string>
+    <string name="compose_player_outline_width">Outline Width</string>
+    <string name="sub_font_default">Default</string>
+    <string name="sub_font_sans">Sans-Serif</string>
+    <string name="sub_font_serif">Serif</string>
+    <string name="sub_font_mono">Monospace</string>
+    <string name="sub_font_phimmoi">PhimMoi</string>
+    <string name="sub_font_inter">Inter</string>
+    <string name="sub_font_opensans">Open Sans</string>
+    <string name="sub_font_dmsans">DM Sans</string>
+    <string name="sub_font_oswald">Oswald</string>
+    <string name="sub_font_custom">Custom</string>
+    <string name="sub_font_custom_named">%1$s (Custom)</string>
+    <string name="sub_font_custom_pick">+ Add Font from Storage…</string>
+    <string name="sub_font_custom_change">Change Custom Font…</string>
+    <string name="sub_font_custom_remove">Reset Custom Font</string>
 </resources>

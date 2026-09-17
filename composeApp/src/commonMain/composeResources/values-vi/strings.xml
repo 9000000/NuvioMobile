@@ -2288,4 +2288,22 @@
     <string name="torrserver_check_gst">Kiểm tra GStreamer</string>
     <string name="torrserver_select_file">Chọn tệp trong Torrent</string>
     <string name="torrserver_files_title">Danh sách tệp Torrent</string>
+    <!-- Subtitle Custom Font & Outline -->
+    <string name="settings_playback_subtitle_font">Phông chữ phụ đề</string>
+    <string name="settings_playback_subtitle_outline_width">Độ dày viền phụ đề</string>
+    <string name="compose_player_outline_width">Độ dày viền</string>
+    <string name="sub_font_default">Mặc định</string>
+    <string name="sub_font_sans">Sans-Serif</string>
+    <string name="sub_font_serif">Serif</string>
+    <string name="sub_font_mono">Monospace</string>
+    <string name="sub_font_phimmoi">PhimMoi</string>
+    <string name="sub_font_inter">Inter</string>
+    <string name="sub_font_opensans">Open Sans</string>
+    <string name="sub_font_dmsans">DM Sans</string>
+    <string name="sub_font_oswald">Oswald</string>
+    <string name="sub_font_custom">Tùy chỉnh</string>
+    <string name="sub_font_custom_named">%1$s (Tùy chỉnh)</string>
+    <string name="sub_font_custom_pick">+ Thêm phông chữ từ bộ nhớ…</string>
+    <string name="sub_font_custom_change">Đổi phông chữ tùy chỉnh…</string>
+    <string name="sub_font_custom_remove">Đặt lại phông mặc định</string>
 </resources>

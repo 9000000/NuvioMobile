@@ -36,6 +36,7 @@ internal class SidecarSubtitleController(
     private val scope: CoroutineScope,
     private val getPlayer: () -> Player?,
     private val getSubtitleDelayMs: () -> Int = { 0 },
+    private val getSubtitleStyle: () -> SubtitleStyleState = { SubtitleStyleState.DEFAULT },
 ) {
     private var sidecarSubtitleJob: Job? = null
     var activeSidecarSubtitleKey: String? = null
@@ -162,15 +163,22 @@ internal class SidecarSubtitleController(
         val delayUs = getSubtitleDelayMs().toLong() * 1_000L
         val positionUs = (player.currentPosition.coerceAtLeast(0L) * 1_000L - delayUs).coerceAtLeast(0L)
         val active = collectActiveSidecarCues(cues, positionUs)
-        val signature = activeCueSignature(active)
+        val style = getSubtitleStyle()
+        val signature = activeCueSignature(active, style.outlineEnabled, style.outlineWidth)
         if (signature == lastSidecarCueSignature) return
         lastSidecarCueSignature = signature
         val currentKey = activeSidecarSubtitleKey ?: return
+        val styledCues = active.map { it.applyOutlineWidth(style.outlineEnabled, style.outlineWidth) }
         postToSubtitleView { view ->
             if (view.getTag(R.id.player_view_sidecar_generation_tag) == currentKey) {
-                view.setCues(active)
+                view.setCues(styledCues)
             }
         }
+    }
+
+    fun onStyleChanged() {
+        lastSidecarCueSignature = null
+        renderSidecarCuesAtCurrentPosition()
     }
 
     private fun postToSubtitleView(block: (SubtitleView) -> Unit) {
@@ -306,9 +314,15 @@ private fun collectActiveSidecarCues(
     return active
 }
 
-private fun activeCueSignature(cues: List<Cue>): Long {
+private fun activeCueSignature(
+    cues: List<Cue>,
+    outlineEnabled: Boolean = false,
+    outlineWidth: Int = 0,
+): Long {
     if (cues.isEmpty()) return EMPTY_CUE_SIGNATURE
     var hash = cues.size.toLong()
+    hash = 31L * hash + (if (outlineEnabled) 1L else 0L)
+    hash = 31L * hash + outlineWidth.toLong()
     for (cue in cues) {
         hash = 31L * hash + (cue.text?.hashCode()?.toLong() ?: 0L)
         hash = 31L * hash + cue.line.toBits().toLong()

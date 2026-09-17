@@ -262,9 +262,11 @@ private fun ExoPlayerSurface(
     val latestSubtitleDelayMs = rememberUpdatedState(subtitleDelayMs)
     val latestExternalSubtitleMimeType = rememberUpdatedState(selectedExternalSubtitleMimeType)
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+    var normalizingOutputRef by remember { mutableStateOf<CueNormalizingTextOutput?>(null) }
     var videoAspectRatio by remember(playerSourceKey) { mutableStateOf(0f) }
     val latestVideoAspectRatio = rememberUpdatedState(videoAspectRatio)
     var currentSubtitleStyle by remember { mutableStateOf(SubtitleStyleState.DEFAULT) }
+    val latestSubtitleStyle = rememberUpdatedState(currentSubtitleStyle)
     var decoderPriorityOverride by remember(playerSourceKey) { mutableStateOf<Int?>(null) }
     var fallbackStartPositionMs by remember(playerSourceKey) { mutableStateOf<Long?>(null) }
     val effectiveDecoderPriority = decoderPriorityOverride ?: playerSettings.decoderPriority
@@ -345,9 +347,13 @@ private fun ExoPlayerSurface(
             shouldNormalizeCuePositionProvider = {
                 latestExternalSubtitleMimeType.value == MimeTypes.TEXT_VTT
             },
-            shouldStripSdhProvider = { currentSubtitleStyle.stripSdh },
+            shouldStripSdhProvider = { latestSubtitleStyle.value.stripSdh },
+            subtitleStyleProvider = { latestSubtitleStyle.value },
             videoBoundsFractionProvider = {
                 playerViewRef?.videoBoundsFraction(latestVideoAspectRatio.value)
+            },
+            onNormalizingOutputCreated = { output ->
+                normalizingOutputRef = output
             },
         )
             .setExtensionRendererMode(effectiveDecoderPriority)
@@ -490,6 +496,7 @@ private fun ExoPlayerSurface(
             scope = coroutineScope,
             getPlayer = { exoPlayer },
             getSubtitleDelayMs = { latestSubtitleDelayMs.value },
+            getSubtitleStyle = { latestSubtitleStyle.value },
         )
     }
 
@@ -894,6 +901,8 @@ private fun ExoPlayerSurface(
                 override fun applySubtitleStyle(style: SubtitleStyleState) {
                     currentSubtitleStyle = style
                     playerViewRef?.applySubtitleStyle(style, pipSubtitleScale)
+                    sidecarController.onStyleChanged()
+                    normalizingOutputRef?.reapplyCurrentCues()
                 }
 
                 override fun applySubtitlePreferences(
@@ -1601,6 +1610,11 @@ private class NuvioLibmpvView(
                         "Sans-Serif" -> mpv.setPropertyString("sub-font", "sans-serif")
                         "Serif" -> mpv.setPropertyString("sub-font", "serif")
                         "Monospace" -> mpv.setPropertyString("sub-font", "monospace")
+                        "PhimMoi" -> mpv.setPropertyString("sub-font", "UVN Hong Ha Hep, PhimMoi")
+                        "Inter" -> mpv.setPropertyString("sub-font", "Inter")
+                        "Open Sans" -> mpv.setPropertyString("sub-font", "Open Sans")
+                        "DM Sans" -> mpv.setPropertyString("sub-font", "DM Sans")
+                        "Oswald" -> mpv.setPropertyString("sub-font", "Oswald")
                         else -> mpv.setPropertyString("sub-font", "")
                     }
                 }
@@ -1732,7 +1746,7 @@ private fun SubtitleStyleState.toMpvSubtitleFontSize(): Int =
     )
 
 private fun SubtitleStyleState.toMpvSubtitleOutlineSize(): Int =
-    if (!outlineEnabled) 0 else (outlineWidth * MPV_SUBTITLE_OUTLINE_SIZE_SCALE).toInt().coerceAtLeast(1)
+    if (!outlineEnabled) 0 else outlineWidth.coerceIn(1, 50)
 
 private fun SubtitleStyleState.toMpvSubtitleBorderStyle(): String =
     if (outlineEnabled) {
@@ -2164,7 +2178,9 @@ private class SubtitleOffsetRenderersFactory(
     private val subtitleDelayUsProvider: () -> Long,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
     private val shouldStripSdhProvider: () -> Boolean,
+    private val subtitleStyleProvider: () -> SubtitleStyleState,
     private val videoBoundsFractionProvider: () -> RectF?,
+    private val onNormalizingOutputCreated: (CueNormalizingTextOutput) -> Unit = {},
 ) : DefaultRenderersFactory(context) {
     override fun buildTextRenderers(
         context: Context,
@@ -2177,8 +2193,10 @@ private class SubtitleOffsetRenderersFactory(
             delegate = output,
             shouldNormalizeCuePositionProvider = shouldNormalizeCuePositionProvider,
             shouldStripSdhProvider = shouldStripSdhProvider,
+            subtitleStyleProvider = subtitleStyleProvider,
             videoBoundsFractionProvider = videoBoundsFractionProvider,
         )
+        onNormalizingOutputCreated(normalizingOutput)
         val startIndex = out.size
         super.buildTextRenderers(context, normalizingOutput, outputLooper, extensionRendererMode, out)
         for (index in startIndex until out.size) {
@@ -2194,16 +2212,37 @@ private class CueNormalizingTextOutput(
     private val delegate: TextOutput,
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
     private val shouldStripSdhProvider: () -> Boolean,
+    private val subtitleStyleProvider: () -> SubtitleStyleState,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : TextOutput {
+    private var lastCueGroup: CueGroup? = null
+    private var lastCuesList: List<Cue>? = null
+
     override fun onCues(cueGroup: CueGroup) {
+        lastCueGroup = cueGroup
+        lastCuesList = null
         val processed = cueGroup.cues.mapNotNull(::processCue)
         delegate.onCues(CueGroup(processed, cueGroup.presentationTimeUs))
     }
 
     @Deprecated("Uses the deprecated Media3 callback for text outputs.")
     override fun onCues(cues: List<Cue>) {
+        lastCuesList = cues
+        lastCueGroup = null
         delegate.onCues(cues.mapNotNull(::processCue))
+    }
+
+    fun reapplyCurrentCues() {
+        val group = lastCueGroup
+        if (group != null) {
+            val processed = group.cues.mapNotNull(::processCue)
+            delegate.onCues(CueGroup(processed, group.presentationTimeUs))
+            return
+        }
+        val cues = lastCuesList
+        if (cues != null) {
+            delegate.onCues(cues.mapNotNull(::processCue))
+        }
     }
 
     private fun processCue(cue: Cue): Cue? {
@@ -2218,6 +2257,8 @@ private class CueNormalizingTextOutput(
         if (shouldNormalizeCuePositionProvider()) {
             processed = normalizeCuePosition(processed)
         }
+        val currentStyle = subtitleStyleProvider()
+        processed = processed.applyOutlineWidth(currentStyle.outlineEnabled, currentStyle.outlineWidth)
         if (processed.bitmap != null) {
             val bounds = videoBoundsFractionProvider()
             if (bounds != null && bounds.width() > 0f && bounds.height() > 0f) {
@@ -2395,6 +2436,11 @@ private fun resolveSubtitleTypeface(fontName: String, customFontPath: String?, b
                 "Sans-Serif" -> Typeface.create(Typeface.SANS_SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
                 "Serif" -> Typeface.create(Typeface.SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
                 "Monospace" -> Typeface.create(Typeface.MONOSPACE, if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "PhimMoi" -> Typeface.create("UVN Hong Ha Hep", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "Inter" -> Typeface.create("Inter", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "Open Sans" -> Typeface.create("Open Sans", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "DM Sans" -> Typeface.create("DM Sans", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "Oswald" -> Typeface.create("Oswald", if (bold) Typeface.BOLD else Typeface.NORMAL)
                 else -> if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             }
         }

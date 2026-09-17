@@ -22,7 +22,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material3.BasicAlertDialog
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -72,6 +75,7 @@ import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.formatPlaybackSpeedLabel
 import com.nuvio.app.features.player.languageLabelForCode
+import com.nuvio.app.features.player.rememberFontPickerLauncher
 import com.nuvio.app.features.player.subtitleFontSizeRangeSp
 import com.nuvio.app.features.player.toStorageHexString
 import com.nuvio.app.features.p2p.P2pCacheClearResult
@@ -294,6 +298,7 @@ private fun PlaybackSettingsSection(
     var showSecondaryAudioDialog by remember { mutableStateOf(false) }
     var showPreferredSubtitleDialog by remember { mutableStateOf(false) }
     var showSecondarySubtitleDialog by remember { mutableStateOf(false) }
+    var showSubtitleFontDialog by remember { mutableStateOf(false) }
     var showSubtitleTextColorDialog by remember { mutableStateOf(false) }
     var showSubtitleBackgroundColorDialog by remember { mutableStateOf(false) }
     var showSubtitleOutlineColorDialog by remember { mutableStateOf(false) }
@@ -320,6 +325,15 @@ private fun PlaybackSettingsSection(
     var p2pCacheClearFailed by remember { mutableStateOf(false) }
     val pluginsEnabled = AppFeaturePolicy.pluginsEnabled
     val autoPlayPlayerSettings by PlayerSettingsRepository.uiState.collectAsStateWithLifecycle()
+    val fontPickerLauncher = rememberFontPickerLauncher { name, path ->
+        PlayerSettingsRepository.setSubtitleStyle(
+            autoPlayPlayerSettings.subtitleStyle.copy(
+                fontName = "Custom",
+                customFontPath = path,
+                customFontName = name,
+            ),
+        )
+    }
     val p2pSettings by remember {
         P2pSettingsRepository.ensureLoaded()
         P2pSettingsRepository.uiState
@@ -573,6 +587,17 @@ private fun PlaybackSettingsSection(
                     },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.settings_playback_subtitle_font),
+                    description = subtitleFontDisplayName(
+                        fontName = subtitleStyle.fontName,
+                        customFontName = subtitleStyle.customFontName,
+                    ),
+                    enabled = subtitleRenderingEnabled,
+                    isTablet = isTablet,
+                    onClick = { showSubtitleFontDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 SettingsSliderRow(
                     title = stringResource(Res.string.settings_playback_subtitle_vertical_offset),
                     value = subtitleStyle.bottomOffset,
@@ -631,6 +656,19 @@ private fun PlaybackSettingsSection(
                         enabled = subtitleRenderingEnabled,
                         isTablet = isTablet,
                         onClick = { showSubtitleOutlineColorDialog = true },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.settings_playback_subtitle_outline_width),
+                        value = subtitleStyle.outlineWidth,
+                        valueText = "${subtitleStyle.outlineWidth}px",
+                        valueRange = 1..50,
+                        step = 1,
+                        isTablet = isTablet,
+                        enabled = subtitleRenderingEnabled,
+                        onValueChange = { value ->
+                            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = value))
+                        },
                     )
                 }
                 val showLibassSettings = !isIos && androidPlaybackEngine != AndroidPlaybackEngine.Libmpv
@@ -1373,6 +1411,34 @@ private fun PlaybackSettingsSection(
                 showSecondarySubtitleDialog = false
             },
             onDismiss = { showSecondarySubtitleDialog = false },
+        )
+    }
+
+    if (showSubtitleFontDialog) {
+        SubtitleFontDialog(
+            selectedFont = autoPlayPlayerSettings.subtitleStyle.fontName,
+            customFontName = autoPlayPlayerSettings.subtitleStyle.customFontName,
+            onFontSelected = { font ->
+                PlayerSettingsRepository.setSubtitleStyle(
+                    autoPlayPlayerSettings.subtitleStyle.copy(fontName = font),
+                )
+                showSubtitleFontDialog = false
+            },
+            onPickCustomFont = {
+                showSubtitleFontDialog = false
+                fontPickerLauncher()
+            },
+            onClearCustomFont = {
+                PlayerSettingsRepository.setSubtitleStyle(
+                    autoPlayPlayerSettings.subtitleStyle.copy(
+                        fontName = "Default",
+                        customFontPath = null,
+                        customFontName = null,
+                    ),
+                )
+                showSubtitleFontDialog = false
+            },
+            onDismiss = { showSubtitleFontDialog = false },
         )
     }
 
@@ -2617,6 +2683,194 @@ private fun SubtitleColorDialog(
                                     if (isSelected) {
                                         Icon(
                                             imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(Res.string.settings_playback_dialog_close),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun subtitleFontDisplayName(fontName: String, customFontName: String?): String {
+    return when (fontName) {
+        "Default" -> stringResource(Res.string.sub_font_default)
+        "Sans-Serif" -> stringResource(Res.string.sub_font_sans)
+        "Serif" -> stringResource(Res.string.sub_font_serif)
+        "Monospace" -> stringResource(Res.string.sub_font_mono)
+        "PhimMoi" -> stringResource(Res.string.sub_font_phimmoi)
+        "Inter" -> stringResource(Res.string.sub_font_inter)
+        "Open Sans" -> stringResource(Res.string.sub_font_opensans)
+        "DM Sans" -> stringResource(Res.string.sub_font_dmsans)
+        "Oswald" -> stringResource(Res.string.sub_font_oswald)
+        "Custom" -> customFontName?.let { stringResource(Res.string.sub_font_custom_named, it) }
+            ?: stringResource(Res.string.sub_font_custom)
+        else -> fontName
+    }
+}
+
+private data class SubtitleFontDialogOption(
+    val value: String,
+    val label: String,
+    val isAction: Boolean = false,
+    val actionIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+)
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun SubtitleFontDialog(
+    selectedFont: String,
+    customFontName: String?,
+    onFontSelected: (String) -> Unit,
+    onPickCustomFont: () -> Unit,
+    onClearCustomFont: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val valuePickNew = "__pick_custom__"
+    val valueClear = "__clear_custom__"
+
+    val baseOptions = listOf(
+        "Default" to stringResource(Res.string.sub_font_default),
+        "Sans-Serif" to stringResource(Res.string.sub_font_sans),
+        "Serif" to stringResource(Res.string.sub_font_serif),
+        "Monospace" to stringResource(Res.string.sub_font_mono),
+        "PhimMoi" to stringResource(Res.string.sub_font_phimmoi),
+        "Inter" to stringResource(Res.string.sub_font_inter),
+        "Open Sans" to stringResource(Res.string.sub_font_opensans),
+        "DM Sans" to stringResource(Res.string.sub_font_dmsans),
+        "Oswald" to stringResource(Res.string.sub_font_oswald),
+    )
+
+    val options = buildList {
+        baseOptions.forEach { (key, label) ->
+            add(SubtitleFontDialogOption(value = key, label = label))
+        }
+        if (!customFontName.isNullOrBlank()) {
+            add(
+                SubtitleFontDialogOption(
+                    value = "Custom",
+                    label = stringResource(Res.string.sub_font_custom_named, customFontName),
+                ),
+            )
+            add(
+                SubtitleFontDialogOption(
+                    value = valuePickNew,
+                    label = stringResource(Res.string.sub_font_custom_change),
+                    isAction = true,
+                    actionIcon = Icons.Rounded.FolderOpen,
+                ),
+            )
+            add(
+                SubtitleFontDialogOption(
+                    value = valueClear,
+                    label = stringResource(Res.string.sub_font_custom_remove),
+                    isAction = true,
+                    actionIcon = Icons.Rounded.Delete,
+                ),
+            )
+        } else {
+            add(
+                SubtitleFontDialogOption(
+                    value = valuePickNew,
+                    label = stringResource(Res.string.sub_font_custom_pick),
+                    isAction = true,
+                    actionIcon = Icons.Rounded.Add,
+                ),
+            )
+        }
+    }
+
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_playback_subtitle_font),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(options) { option ->
+                        val isSelected = !option.isAction && (option.value == selectedFont)
+                        val containerColor = if (isSelected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                        } else if (option.isAction) {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    when (option.value) {
+                                        valuePickNew -> onPickCustomFont()
+                                        valueClear -> onClearCustomFont()
+                                        else -> onFontSelected(option.value)
+                                    }
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = containerColor,
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = option.label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (option.isAction) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                    fontWeight = if (isSelected || option.isAction) FontWeight.Medium else FontWeight.Normal,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Box(
+                                    modifier = Modifier.size(24.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    } else if (option.actionIcon != null) {
+                                        Icon(
+                                            imageVector = option.actionIcon,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
                                         )
