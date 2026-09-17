@@ -113,7 +113,6 @@ object TorrServerService {
 
         if (isPreload) {
             log.d { "Preload enabled: starting preload call with URL (preload param only): $preloadUrl" }
-            startStatsPolling(serverUrl, hash, preloadUrl, config.authUsername, config.authPassword)
 
             _state.value = P2pStreamingState.Streaming(
                 localUrl = preloadUrl,
@@ -165,6 +164,7 @@ object TorrServerService {
                     preloadProgress = 1f,
                 )
             }
+            startStatsPolling(serverUrl, hash, playbackPlayUrl, config.authUsername, config.authPassword)
             playbackPlayUrl
         } else {
             log.d { "Preload disabled: starting directly with play parameter: $playbackPlayUrl" }
@@ -260,13 +260,43 @@ object TorrServerService {
         _state.value = P2pStreamingState.Idle
     }
 
+    fun evaluatePreloadReadiness(
+        stats: TorrServerRemoteStatus,
+        hasObservedPreloadState: Boolean,
+        elapsedMs: Long,
+        gracePeriodMs: Long = 5_000L,
+    ): Boolean {
+        // 1. Nếu tiến độ buffer >= 95%, luôn sẵn sàng
+        if (stats.isPreloadReadyByProgress) return true
+
+        val isServerActive = stats.stat == 3 ||
+            stats.statString.equals("active", ignoreCase = true) ||
+            stats.statString.equals("Torrent working", ignoreCase = true)
+
+        // 2. Nếu đã từng thấy server ở pha preload (stat == 2) và bây giờ server chuyển sang active (stat == 3),
+        // tức là TorrServer đã hoàn tất buffer!
+        if (hasObservedPreloadState && isServerActive) return true
+
+        // 3. Grace fallback: Nếu sau một khoảng thời gian (mặc định 5s) mà server vẫn ở active và không bao giờ vào stat 2
+        // (ví dụ file đã được cache từ trước trên server), cho phép phát để tránh treo app.
+        if (!hasObservedPreloadState && isServerActive && elapsedMs >= gracePeriodMs) return true
+
+        return false
+    }
+
     private suspend fun awaitPreloadReady(
         serverUrl: String,
         hash: String,
         user: String,
         pass: String,
     ) {
-        val deadline = WatchProgressClock.nowEpochMs() + 60_000L
+        val startTime = WatchProgressClock.nowEpochMs()
+        val deadline = startTime + 60_000L
+        // Track whether we have witnessed the server entering preload phase (stat == 2 or preloadedBytes > 0).
+        // Crucial: When resolving file info / metadata initially, TorrServer is in stat == 3 (active).
+        // We MUST NOT mistake that initial active state for preload completion!
+        var hasObservedPreloadState = false
+
         while (WatchProgressClock.nowEpochMs() < deadline) {
             val stats = TorrServerRemoteApi.getTorrentDetails(
                 serverUrl = serverUrl,
@@ -275,29 +305,51 @@ object TorrServerService {
                 password = pass,
             )
             if (stats != null) {
-                val isReady = stats.isPreloadReady || stats.preloadProgress >= 0.95f
+                val isPreloadingNow = stats.stat == 2 ||
+                    stats.statString?.contains("preload", ignoreCase = true) == true ||
+                    (stats.preloadSize > 0L && stats.preloadedBytes > 0L)
+
+                if (isPreloadingNow) {
+                    hasObservedPreloadState = true
+                }
+
+                val elapsedMs = WatchProgressClock.nowEpochMs() - startTime
+                val isReady = evaluatePreloadReadiness(
+                    stats = stats,
+                    hasObservedPreloadState = hasObservedPreloadState,
+                    elapsedMs = elapsedMs,
+                )
+
                 val latest = _state.value
                 if (latest is P2pStreamingState.Streaming) {
+                    val effectiveStat = if (!isReady && !isPreloadingNow && !hasObservedPreloadState) 2 else stats.stat
+                    val effectiveStatString = if (!isReady && !isPreloadingNow && !hasObservedPreloadState) "preloading" else stats.statString
+                    val effectiveProgress = if (isReady) 1f else stats.preloadProgress
+
                     _state.value = latest.copy(
                         downloadSpeed = stats.downloadSpeed,
                         uploadSpeed = stats.uploadSpeed,
                         peers = stats.activePeers,
                         seeds = stats.connectedSeeders,
-                        bufferProgress = if (isReady) 1f else stats.preloadProgress,
-                        totalProgress = if (isReady) 1f else stats.preloadProgress,
+                        bufferProgress = effectiveProgress,
+                        totalProgress = effectiveProgress,
                         downloadedBytes = stats.preloadedBytes,
                         deliveredBytes = stats.loadedSize,
                         preloadedBytes = stats.preloadedBytes,
                         preloadSize = stats.preloadSize,
                         isPreloadActive = true,
                         isPreloadReady = isReady,
-                        preloadProgress = if (isReady) 1f else stats.preloadProgress,
-                        stat = stats.stat,
-                        statString = stats.statString,
+                        preloadProgress = effectiveProgress,
+                        stat = effectiveStat,
+                        statString = effectiveStatString,
                     )
                 }
+
                 if (isReady) {
-                    log.d { "TorrServer preload reached 95% (or active): handing stream to player" }
+                    log.d {
+                        "TorrServer preload ready (hasObservedPreload=$hasObservedPreloadState, " +
+                            "stat=${stats.stat}, progress=${stats.preloadProgress}, elapsed=${elapsedMs}ms): handing stream to player"
+                    }
                     return
                 }
             }
@@ -333,21 +385,20 @@ object TorrServerService {
                     )
                     val cur = _state.value
                     if (stats != null && cur is P2pStreamingState.Streaming) {
-                        val ready = stats.isPreloadReady || stats.preloadProgress >= 0.95f || cur.isPreloadReady
                         _state.value = cur.copy(
                             downloadSpeed = stats.downloadSpeed,
                             uploadSpeed = stats.uploadSpeed,
                             peers = stats.activePeers,
                             seeds = stats.connectedSeeders,
-                            bufferProgress = stats.preloadProgress,
-                            totalProgress = stats.preloadProgress,
+                            bufferProgress = if (cur.isPreloadReady) 1f else stats.preloadProgress,
+                            totalProgress = if (cur.isPreloadReady) 1f else stats.preloadProgress,
                             downloadedBytes = stats.preloadedBytes,
                             deliveredBytes = stats.loadedSize,
                             preloadedBytes = stats.preloadedBytes,
                             preloadSize = stats.preloadSize,
                             isPreloadActive = cur.isPreloadActive,
-                            isPreloadReady = ready,
-                            preloadProgress = if (ready) 1f else stats.preloadProgress,
+                            isPreloadReady = cur.isPreloadReady,
+                            preloadProgress = if (cur.isPreloadReady) 1f else stats.preloadProgress,
                             stat = stats.stat,
                             statString = stats.statString,
                         )

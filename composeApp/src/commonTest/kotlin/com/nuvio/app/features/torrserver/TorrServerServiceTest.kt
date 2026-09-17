@@ -29,16 +29,18 @@ class TorrServerServiceTest {
         assertFalse(notReady.isPreloadReady)
         assertEquals(0.2f, notReady.preloadProgress)
 
-        val readyByStat = TorrServerRemoteStatus(
+        // Khi mới add torrent / lấy danh sách file xong: server ở stat = 3 (active), nhưng chưa buffer xong
+        val activeMetadataOnly = TorrServerRemoteStatus(
             hash = "123456",
             title = "Test",
-            stat = 3, // TorrentWorking
+            stat = 3, // TorrentWorking / active
             statString = "Working",
             torrentSize = 1_000_000_000L,
-            preloadedBytes = 10_000_000L,
-            preloadSize = 50_000_000L,
+            preloadedBytes = 0L,
+            preloadSize = 0L,
         )
-        assertTrue(readyByStat.isPreloadReady)
+        assertFalse(activeMetadataOnly.isPreloadReady)
+        assertEquals(0.0f, activeMetadataOnly.preloadProgress)
 
         val readyBySize = TorrServerRemoteStatus(
             hash = "123456",
@@ -76,6 +78,94 @@ class TorrServerServiceTest {
         )
         assertTrue(threshold95.isPreloadReady)
         assertEquals(1.0f, threshold95.preloadProgress)
+    }
+
+    @Test
+    fun testEvaluatePreloadReadiness_InitialActiveState_NotReady() {
+        // Lưu ý quan trọng từ người dùng: Khi check thông tin file lần đầu để có danh sách file,
+        // trạng thái của server đang là active (stat = 3), preloadedBytes = 0.
+        // Khi vừa bắt đầu preload, KHÔNG ĐƯỢC coi là ready!
+        val activeInitialStatus = TorrServerRemoteStatus(
+            hash = "123456",
+            stat = 3,
+            statString = "Torrent working",
+            preloadedBytes = 0L,
+            preloadSize = 0L,
+        )
+        val ready = TorrServerService.evaluatePreloadReadiness(
+            stats = activeInitialStatus,
+            hasObservedPreloadState = false,
+            elapsedMs = 200L,
+            gracePeriodMs = 5_000L,
+        )
+        assertFalse(ready)
+    }
+
+    @Test
+    fun testEvaluatePreloadReadiness_PreloadTransitionToActive_Ready() {
+        // Sau khi đã chứng kiến server vào pha preload (stat == 2), server chuyển sang active (stat == 3)
+        // -> TorrServer đã nạp buffer xong và báo active -> READY!
+        val transitionedStatus = TorrServerRemoteStatus(
+            hash = "123456",
+            stat = 3,
+            statString = "Torrent working",
+            preloadedBytes = 33_554_432L,
+            preloadSize = 33_554_432L,
+        )
+        val ready = TorrServerService.evaluatePreloadReadiness(
+            stats = transitionedStatus,
+            hasObservedPreloadState = true,
+            elapsedMs = 3_000L,
+            gracePeriodMs = 5_000L,
+        )
+        assertTrue(ready)
+    }
+
+    @Test
+    fun testEvaluatePreloadReadiness_Buffer95Percent_Ready() {
+        // Đạt >= 95% buffer ngay cả khi server vẫn đang ở stat = 2 (preloading) -> READY!
+        val preloadingStatus = TorrServerRemoteStatus(
+            hash = "123456",
+            stat = 2,
+            statString = "Torrent preload",
+            preloadedBytes = 48_000_000L,
+            preloadSize = 50_000_000L,
+        )
+        val ready = TorrServerService.evaluatePreloadReadiness(
+            stats = preloadingStatus,
+            hasObservedPreloadState = true,
+            elapsedMs = 2_000L,
+            gracePeriodMs = 5_000L,
+        )
+        assertTrue(ready)
+    }
+
+    @Test
+    fun testEvaluatePreloadReadiness_CachedGracePeriod_Ready() {
+        // Nếu torrent đã được cache từ trước trên server và server giữ nguyên active (stat = 3),
+        // sau khi hết grace period (5s) -> READY để không bị treo
+        val cachedStatus = TorrServerRemoteStatus(
+            hash = "123456",
+            stat = 3,
+            statString = "active",
+            preloadedBytes = 0L,
+            preloadSize = 0L,
+        )
+        val readyBeforeGrace = TorrServerService.evaluatePreloadReadiness(
+            stats = cachedStatus,
+            hasObservedPreloadState = false,
+            elapsedMs = 2_000L,
+            gracePeriodMs = 5_000L,
+        )
+        assertFalse(readyBeforeGrace)
+
+        val readyAfterGrace = TorrServerService.evaluatePreloadReadiness(
+            stats = cachedStatus,
+            hasObservedPreloadState = false,
+            elapsedMs = 5_500L,
+            gracePeriodMs = 5_000L,
+        )
+        assertTrue(readyAfterGrace)
     }
 
     @Test

@@ -60,12 +60,17 @@ data class TorrServerRemoteStatus(
             return if (target > 0) (preloadedBytes.toFloat() / target).coerceIn(0f, 1f) else 0f
         }
 
-    val isPreloadReady: Boolean
+    val isPreloadReadyByProgress: Boolean
         get() = (preloadSize > 0 && preloadedBytes >= preloadSize * 95 / 100) ||
-            rawPreloadProgress >= 0.95f ||
-            stat == 3 ||
-            statString.equals("active", ignoreCase = true) ||
-            statString.equals("Torrent working", ignoreCase = true)
+            rawPreloadProgress >= 0.95f
+
+    /**
+     * Note: [stat == 3] (active) MUST NOT be unconditionally treated as preload ready here,
+     * because when resolving torrent metadata / files list, the server is already in stat == 3 (active)
+     * before the preload stream even begins.
+     */
+    val isPreloadReady: Boolean
+        get() = isPreloadReadyByProgress
 
     val preloadProgress: Float
         get() = if (isPreloadReady) 1f else rawPreloadProgress
