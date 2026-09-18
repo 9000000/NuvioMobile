@@ -193,6 +193,8 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
     activeStreamType = null
+    activeDrmType = null
+    activeDrmKey = null
     activeTorrentInfoHash = infoHash
     activeTorrentFileIdx = stream.p2pFileIdx
     activeTorrentFilename = stream.behaviorHints.filename
@@ -240,6 +242,8 @@ internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
     activeStreamType = null
+    activeDrmType = null
+    activeDrmKey = null
     activeTorrentInfoHash = infoHash
     activeTorrentFileIdx = stream.p2pFileIdx
     activeTorrentFilename = stream.behaviorHints.filename
@@ -296,6 +300,8 @@ internal fun PlayerScreenRuntime.switchToSource(stream: StreamItem) {
     activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
     activeSourceResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response)
     activeStreamType = stream.streamType
+    activeDrmType = null
+    activeDrmKey = null
     activeSourceIdentityKey = sourceIdentityKey
     activeStreamTitle = stream.streamLabel
     activeStreamSubtitle = stream.streamSubtitle
@@ -351,6 +357,8 @@ internal fun PlayerScreenRuntime.switchToEpisodeStream(stream: StreamItem, episo
     activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
     activeSourceResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response)
     activeStreamType = stream.streamType
+    activeDrmType = null
+    activeDrmKey = null
     applyEpisodeStreamMetadata(stream, episode, resume)
 }
 
@@ -385,6 +393,8 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
     activeStreamType = null
+    activeDrmType = null
+    activeDrmKey = null
     activeSourceIdentityKey = null
     activeStreamTitle = downloadItem.streamTitle.ifBlank {
         episode.title.ifBlank { title }
@@ -469,6 +479,8 @@ private fun PlayerScreenRuntime.switchToPreparedLiveChannel(channel: LiveTvChann
     activeEpisodeNumber = null
     activeEpisodeTitle = null
     activeStreamType = channel.streamType
+    activeDrmType = channel.drmType
+    activeDrmKey = channel.drmKey
     activeEpisodeThumbnail = null
     activeVideoId = channel.id
     activeInitialPositionMs = 0L
@@ -621,6 +633,8 @@ internal fun PlayerScreenRuntime.switchToTorrServerStream(stream: StreamItem) {
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
     activeStreamType = null
+    activeDrmType = null
+    activeDrmKey = null
     activeTorrentInfoHash = infoHash
     activeTorrentFileIdx = fileIdx
     activeTorrentFilename = stream.behaviorHints.filename
@@ -662,6 +676,8 @@ internal fun PlayerScreenRuntime.switchToTorrServerEpisodeStream(
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
     activeStreamType = null
+    activeDrmType = null
+    activeDrmKey = null
     activeTorrentInfoHash = infoHash
     activeTorrentFileIdx = fileIdx
     activeTorrentFilename = stream.behaviorHints.filename

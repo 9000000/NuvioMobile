@@ -1298,6 +1298,8 @@ internal fun MainAppContent(
                         videoId = playableChannel.id,
                         parentMetaId = playableChannel.id,
                         parentMetaType = "live",
+                        drmType = playableChannel.drmType,
+                        drmKey = playableChannel.drmKey,
                     ),
                 )
                 navController.navigate(PlayerRoute(launchId = launchId))

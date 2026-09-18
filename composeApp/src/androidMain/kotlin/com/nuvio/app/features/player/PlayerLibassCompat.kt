@@ -31,7 +31,8 @@ internal fun ExoPlayer.Builder.buildWithAssSupportCompat(
     renderType: AssRenderType = AssRenderType.CUES,
     dataSourceFactory: DataSource.Factory = DefaultDataSource.Factory(context),
     extractorsFactory: ExtractorsFactory = DefaultExtractorsFactory(),
-    renderersFactory: RenderersFactory = DefaultRenderersFactory(context)
+    renderersFactory: RenderersFactory = DefaultRenderersFactory(context),
+    drmSessionManagerProvider: androidx.media3.exoplayer.drm.DrmSessionManagerProvider? = null,
 ): ExoPlayer {
     val assHandler = AssHandler(renderType)
     val assSubtitleParserFactory = CompatAssSubtitleParserFactory(assHandler)
@@ -45,6 +46,7 @@ internal fun ExoPlayer.Builder.buildWithAssSupportCompat(
         assExtractorsFactory
     )
     mediaSourceFactory.setSubtitleParserFactory(assSubtitleParserFactory)
+    drmSessionManagerProvider?.let(mediaSourceFactory::setDrmSessionManagerProvider)
 
     val player = this
         .setMediaSourceFactory(mediaSourceFactory)

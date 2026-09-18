@@ -104,6 +104,8 @@ actual fun PlatformPlayerSurface(
     externalSubtitles: List<com.nuvio.app.features.streams.StreamSubtitle>,
     streamType: String?,
     useYoutubeChunkedPlayback: Boolean,
+    drmType: String?,
+    drmKey: String?,
     modifier: Modifier,
     playWhenReady: Boolean,
     initialPositionMs: Long?,
@@ -126,6 +128,8 @@ actual fun PlatformPlayerSurface(
         sanitizePlaybackResponseHeaders(sourceResponseHeaders),
         normalizeStreamType(streamType).orEmpty(),
         useYoutubeChunkedPlayback,
+        drmType.orEmpty(),
+        drmKey.orEmpty(),
         initialPositionRequestKey.orEmpty(),
     )
     var activeEngine by remember(playerSourceKey, playerSettings.androidPlaybackEngine) {
@@ -141,6 +145,8 @@ actual fun PlatformPlayerSurface(
             externalSubtitles = externalSubtitles,
             streamType = streamType,
             useYoutubeChunkedPlayback = useYoutubeChunkedPlayback,
+            drmType = drmType,
+            drmKey = drmKey,
             modifier = modifier,
             playWhenReady = playWhenReady,
             initialPositionMs = initialPositionMs,
@@ -210,6 +216,8 @@ private fun ExoPlayerSurface(
     externalSubtitles: List<com.nuvio.app.features.streams.StreamSubtitle>,
     streamType: String?,
     useYoutubeChunkedPlayback: Boolean,
+    drmType: String? = null,
+    drmKey: String? = null,
     modifier: Modifier,
     playWhenReady: Boolean,
     initialPositionMs: Long?,
@@ -254,6 +262,8 @@ private fun ExoPlayerSurface(
         sanitizedSourceResponseHeaders,
         normalizedStreamType.orEmpty(),
         useYoutubeChunkedPlayback,
+        drmType.orEmpty(),
+        drmKey.orEmpty(),
         initialPositionRequestKey.orEmpty(),
     )
     val playbackDiagnostics = remember(playerSourceKey) { PlaybackDiagnostics() }
@@ -271,21 +281,29 @@ private fun ExoPlayerSurface(
     var fallbackStartPositionMs by remember(playerSourceKey) { mutableStateOf<Long?>(null) }
     val effectiveDecoderPriority = decoderPriorityOverride ?: playerSettings.decoderPriority
 
+    val drmSessionManagerProvider = remember(drmType, drmKey) {
+        AndroidPlayerDrmHelper.createDrmSessionManagerProvider(drmType = drmType, drmKey = drmKey)
+    }
+
     var resolvedMediaItem by remember(playerSourceKey, externalSubtitles) {
         mutableStateOf(
-            playbackMediaItemFromUrl(
-                url = sourceUrl,
-                responseHeaders = sanitizedSourceResponseHeaders,
-                streamType = normalizedStreamType,
-            ).buildUpon()
-                .setMediaId(sourceUrl)
-                .apply {
-                    val subtitleConfigs = startupSubtitleConfigurations(externalSubtitles)
-                    if (subtitleConfigs.isNotEmpty()) {
-                        setSubtitleConfigurations(subtitleConfigs)
-                    }
-                }
-                .build(),
+            AndroidPlayerDrmHelper.configureDrm(
+                mediaItemBuilder = playbackMediaItemFromUrl(
+                    url = sourceUrl,
+                    responseHeaders = sanitizedSourceResponseHeaders,
+                    streamType = normalizedStreamType,
+                ).buildUpon()
+                    .setMediaId(sourceUrl)
+                    .apply {
+                        val subtitleConfigs = startupSubtitleConfigurations(externalSubtitles)
+                        if (subtitleConfigs.isNotEmpty()) {
+                            setSubtitleConfigurations(subtitleConfigs)
+                        }
+                    },
+                drmType = drmType,
+                drmKey = drmKey,
+                requestHeaders = sanitizedSourceHeaders,
+            ).build(),
         )
     }
     var probeAttempted by remember(playerSourceKey) { mutableStateOf(false) }
@@ -314,8 +332,10 @@ private fun ExoPlayerSurface(
     }
 
     fun ExoPlayer.setPlaybackMediaItem(videoMediaItem: MediaItem, startPositionMs: Long? = null) {
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory).apply {
+            drmSessionManagerProvider?.let(::setDrmSessionManagerProvider)
+        }
         if (!sourceAudioUrl.isNullOrBlank()) {
-            val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
             val videoSource = mediaSourceFactory.createMediaSource(videoMediaItem)
             val audioSource = mediaSourceFactory.createMediaSource(playbackMediaItemFromUrl(sourceAudioUrl))
             val mergedSource = MergingMediaSource(videoSource, audioSource)
@@ -323,6 +343,13 @@ private fun ExoPlayerSurface(
                 setMediaSource(mergedSource, startPositionMs.coerceAtLeast(0L))
             } else {
                 setMediaSource(mergedSource)
+            }
+        } else if (drmSessionManagerProvider != null) {
+            val mediaSource = mediaSourceFactory.createMediaSource(videoMediaItem)
+            if (startPositionMs != null) {
+                setMediaSource(mediaSource, startPositionMs.coerceAtLeast(0L))
+            } else {
+                setMediaSource(mediaSource)
             }
         } else if (startPositionMs != null) {
             setMediaItem(videoMediaItem, startPositionMs.coerceAtLeast(0L))
@@ -339,6 +366,8 @@ private fun ExoPlayerSurface(
         normalizedStreamType,
         useYoutubeChunkedPlayback,
         effectiveDecoderPriority,
+        drmType,
+        drmKey,
         initialPositionRequestKey,
     ) {
         val renderersFactory = SubtitleOffsetRenderersFactory(
@@ -407,13 +436,16 @@ private fun ExoPlayerSurface(
                     renderType = libassRenderType.toAssRenderType(),
                     dataSourceFactory = dataSourceFactory,
                     extractorsFactory = extractorsFactory,
-                    renderersFactory = renderersFactory
+                    renderersFactory = renderersFactory,
+                    drmSessionManagerProvider = drmSessionManagerProvider,
                 )
         } else {
             val mediaSourceFactory = DefaultMediaSourceFactory(
                 dataSourceFactory,
                 extractorsFactory,
-            )
+            ).apply {
+                drmSessionManagerProvider?.let(::setDrmSessionManagerProvider)
+            }
 
             ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)

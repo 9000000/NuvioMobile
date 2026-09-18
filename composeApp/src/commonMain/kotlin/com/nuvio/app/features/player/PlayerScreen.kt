@@ -41,6 +41,8 @@ fun PlayerScreen(
     initialPositionMs: Long = 0L,
     initialProgressFraction: Float? = null,
     contentLanguage: String? = null,
+    drmType: String? = null,
+    drmKey: String? = null,
 ) {
     PlayerScreenContent(
         PlayerScreenArgs(
@@ -80,6 +82,8 @@ fun PlayerScreen(
             initialPositionMs = initialPositionMs,
             initialProgressFraction = initialProgressFraction,
             contentLanguage = contentLanguage,
+            drmType = drmType,
+            drmKey = drmKey,
         )
     )
 }

@@ -72,6 +72,8 @@ expect fun PlatformPlayerSurface(
     externalSubtitles: List<com.nuvio.app.features.streams.StreamSubtitle> = emptyList(),
     streamType: String? = null,
     useYoutubeChunkedPlayback: Boolean = false,
+    drmType: String? = null,
+    drmKey: String? = null,
     modifier: Modifier = Modifier,
     playWhenReady: Boolean = true,
     initialPositionMs: Long? = null,

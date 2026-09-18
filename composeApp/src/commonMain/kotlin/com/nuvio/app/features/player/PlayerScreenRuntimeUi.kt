@@ -195,6 +195,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 sourceResponseHeaders = activeSourceResponseHeaders,
                 externalSubtitles = externalSubtitles,
                 streamType = activeStreamType,
+                drmType = activeDrmType,
+                drmKey = activeDrmKey,
                 modifier = Modifier.fillMaxSize(),
                 playWhenReady = shouldPlay,
                 initialPositionMs = activeInitialPositionMs.takeIf { it > 0L },

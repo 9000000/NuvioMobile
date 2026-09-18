@@ -11,6 +11,8 @@ data class LiveTvChannel(
     val headers: Map<String, String> = emptyMap(),
     val streamType: String? = null,
     val stalkerCommand: String? = null,
+    val drmType: String? = null,
+    val drmKey: String? = null,
 )
 
 data class LiveTvStalkerSettings(

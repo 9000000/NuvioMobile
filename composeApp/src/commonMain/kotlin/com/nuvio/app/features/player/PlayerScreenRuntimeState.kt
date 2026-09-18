@@ -61,6 +61,8 @@ internal class PlayerScreenRuntime(
     val torrentTrackers: List<String> get() = args.torrentTrackers
     val initialPositionMs: Long get() = args.initialPositionMs
     val initialProgressFraction: Float? get() = args.initialProgressFraction
+    val drmType: String? get() = args.drmType
+    val drmKey: String? get() = args.drmKey
     var externalSubtitles by mutableStateOf(args.externalSubtitles)
     val isSeries: Boolean get() = parentMetaType == "series"
     val isLiveTvPlayback: Boolean get() = contentType == "live"
@@ -106,6 +108,8 @@ internal class PlayerScreenRuntime(
     var activeSourceHeaders by mutableStateOf(sanitizePlaybackHeaders(sourceHeaders))
     var activeSourceResponseHeaders by mutableStateOf(sanitizePlaybackResponseHeaders(sourceResponseHeaders))
     var activeStreamType by mutableStateOf(streamType)
+    var activeDrmType by mutableStateOf(drmType)
+    var activeDrmKey by mutableStateOf(drmKey)
     var activeTorrentInfoHash by mutableStateOf(torrentInfoHash)
     var activeTorrentFileIdx by mutableStateOf(torrentFileIdx)
     var activeTorrentFilename by mutableStateOf(torrentFilename)

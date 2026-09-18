@@ -383,12 +383,20 @@ object LiveTvRepository {
     }
 }
 
+private data class PendingM3uEntry(
+    var info: M3uInfo? = null,
+    val headers: MutableMap<String, String> = mutableMapOf(),
+    var licenseType: String? = null,
+    var licenseKey: String? = null,
+    var manifestType: String? = null,
+)
+
 internal fun parseM3uPlaylist(
     payload: String,
     playlist: LiveTvPlaylist? = null,
 ): List<LiveTvChannel> {
     val channels = mutableListOf<LiveTvChannel>()
-    var pendingInfo: M3uInfo? = null
+    var pending = PendingM3uEntry()
 
     payload.lineSequence()
         .map(String::trim)
@@ -396,14 +404,54 @@ internal fun parseM3uPlaylist(
         .forEach { line ->
             when {
                 line.startsWith("#EXTINF", ignoreCase = true) -> {
-                    pendingInfo = parseExtInf(line)
+                    pending.info = parseExtInf(line)
+                }
+                line.startsWith("#KODIPROP:", ignoreCase = true) -> {
+                    val prop = line.substringAfter("#KODIPROP:", "").trim()
+                    val key = prop.substringBefore('=').trim()
+                    val value = prop.substringAfter('=', "").trim()
+                    when {
+                        key.equals("inputstream.adaptive.license_type", ignoreCase = true) -> {
+                            pending.licenseType = value
+                        }
+                        key.equals("inputstream.adaptive.license_key", ignoreCase = true) -> {
+                            pending.licenseKey = value
+                        }
+                        key.equals("inputstream.adaptive.manifest_type", ignoreCase = true) -> {
+                            pending.manifestType = value
+                        }
+                    }
+                }
+                line.startsWith("#EXTVLCOPT:", ignoreCase = true) -> {
+                    val opt = line.substringAfter("#EXTVLCOPT:", "").trim()
+                    val key = opt.substringBefore('=').trim()
+                    val value = opt.substringAfter('=', "").trim()
+                    when {
+                        key.equals("http-user-agent", ignoreCase = true) -> pending.headers["User-Agent"] = value
+                        key.equals("http-referrer", ignoreCase = true) -> pending.headers["Referer"] = value
+                    }
                 }
                 line.startsWith("#") -> Unit
                 else -> {
-                    val streamUrl = line
-                    val info = pendingInfo
+                    val (rawUrl, pipeHeaders) = parseUrlAndPipeHeaders(line)
+                    val combinedHeaders = (pending.headers + pipeHeaders).toMap()
+                    val info = pending.info
+                    val streamUrl = rawUrl
                     val name = info?.name?.takeIf(String::isNotBlank)
                         ?: streamUrl.substringAfterLast('/').substringBefore('?').ifBlank { "Channel" }
+
+                    val detectedStreamType = when {
+                        pending.manifestType?.equals("mpd", ignoreCase = true) == true || streamUrl.contains(".mpd", ignoreCase = true) -> "mpd"
+                        pending.manifestType?.equals("hls", ignoreCase = true) == true || streamUrl.contains(".m3u8", ignoreCase = true) -> "m3u8"
+                        else -> null
+                    }
+
+                    val detectedDrmType = when {
+                        !pending.licenseType.isNullOrBlank() -> pending.licenseType
+                        !pending.licenseKey.isNullOrBlank() -> "clearkey"
+                        else -> null
+                    }
+
                     channels += LiveTvChannel(
                         id = stableChannelId(streamUrl, channels.size),
                         name = name,
@@ -412,13 +460,38 @@ internal fun parseM3uPlaylist(
                         group = info?.group?.takeIf(String::isNotBlank),
                         playlistId = playlist?.id,
                         playlistName = playlist?.name,
+                        headers = combinedHeaders,
+                        streamType = detectedStreamType,
+                        drmType = detectedDrmType,
+                        drmKey = pending.licenseKey,
                     )
-                    pendingInfo = null
+                    pending = PendingM3uEntry()
                 }
             }
         }
 
     return channels.distinctBy { it.streamUrl }
+}
+
+private fun parseUrlAndPipeHeaders(line: String): Pair<String, Map<String, String>> {
+    if (!line.contains('|')) return line to emptyMap()
+    val url = line.substringBefore('|').trim()
+    val rawHeaders = line.substringAfter('|').trim()
+    val headers = mutableMapOf<String, String>()
+    rawHeaders.split('&').forEach { param ->
+        val key = param.substringBefore('=').trim()
+        val value = param.substringAfter('=', "").trim()
+        if (key.isNotBlank() && value.isNotBlank()) {
+            val normalizedKey = when (key.lowercase()) {
+                "user-agent" -> "User-Agent"
+                "referer" -> "Referer"
+                "origin" -> "Origin"
+                else -> key
+            }
+            headers[normalizedKey] = value
+        }
+    }
+    return url to headers
 }
 
 private data class M3uInfo(
