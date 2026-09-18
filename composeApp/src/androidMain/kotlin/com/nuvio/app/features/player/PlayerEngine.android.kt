@@ -1972,12 +1972,21 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: F
                 style.textColor.toArgb(),
                 style.backgroundColor.toArgb(),
                 android.graphics.Color.TRANSPARENT,
-                if (style.outlineEnabled) CaptionStyleCompat.EDGE_TYPE_OUTLINE else CaptionStyleCompat.EDGE_TYPE_NONE,
+                if (style.outlineEnabled && style.outlineWidth > 0) CaptionStyleCompat.EDGE_TYPE_OUTLINE else CaptionStyleCompat.EDGE_TYPE_NONE,
                 style.outlineColor.toArgb(),
                 typeface,
             )
         )
         setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSizeSp.toFloat() * pipScale)
+        // Media3 SubtitlePainter hardcodes outlineWidth = 2dp with no public API to change it.
+        // We patch it via reflection so user-defined outline width is actually applied.
+        val density = context.resources.displayMetrics.density
+        val desiredPx = if (style.outlineEnabled && style.outlineWidth > 0) {
+            (style.outlineWidth * density).coerceAtLeast(1f)
+        } else {
+            0f
+        }
+        applyOutlineWidthReflection(desiredPx)
     }
 }
 

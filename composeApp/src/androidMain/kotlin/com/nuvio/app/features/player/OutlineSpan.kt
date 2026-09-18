@@ -8,15 +8,20 @@ import android.text.style.CharacterStyle
 import androidx.annotation.Px
 import androidx.media3.common.text.Cue
 
+import androidx.media3.common.text.LanguageFeatureSpan
+
 /**
  * Custom [CharacterStyle] that overrides [TextPaint.strokeWidth] during SubtitlePainter draw passes.
  * When CaptionStyleCompat has EDGE_TYPE_OUTLINE, SubtitlePainter draws the stroke layout first.
  * The StaticLayout invokes updateDrawState on all spans, allowing this span to dynamically
  * control the outline stroke width on ExoPlayer.
  *
+ * It implements [LanguageFeatureSpan] so that [androidx.media3.ui.SubtitleView] does not strip
+ * this span when [androidx.media3.ui.SubtitleView.setApplyEmbeddedStyles] is false.
+ *
  * Reference: https://github.com/androidx/media/pull/1840 & NuvioTV / Cloudstream Subtitle engine
  */
-class OutlineSpan(@param:Px val outlineWidth: Float) : CharacterStyle() {
+class OutlineSpan(@param:Px val outlineWidth: Float) : CharacterStyle(), LanguageFeatureSpan {
     override fun updateDrawState(tp: TextPaint?) {
         tp?.strokeWidth = outlineWidth
         tp?.strokeJoin = android.graphics.Paint.Join.ROUND
@@ -34,8 +39,10 @@ internal fun Cue.applyOutlineWidth(outlineEnabled: Boolean, outlineWidth: Int): 
         spannable.removeSpan(span)
     }
     if (outlineEnabled && outlineWidth > 0 && spannable.isNotEmpty()) {
+        val density = android.content.res.Resources.getSystem().displayMetrics.density
+        val strokeWidthPx = (outlineWidth * density).coerceAtLeast(1f)
         spannable.setSpan(
-            OutlineSpan(outlineWidth.toFloat()),
+            OutlineSpan(strokeWidthPx),
             0,
             spannable.length,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
