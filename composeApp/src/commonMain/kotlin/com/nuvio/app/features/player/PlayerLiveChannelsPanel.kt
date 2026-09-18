@@ -62,6 +62,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.NuvioInputField
 import com.nuvio.app.features.livetv.LiveTvChannel
+import com.nuvio.app.features.livetv.LiveTvPlaylist
 import com.nuvio.app.features.livetv.LiveTvRepository
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
@@ -69,6 +70,8 @@ import nuvio.composeapp.generated.resources.action_close
 import nuvio.composeapp.generated.resources.compose_player_channels
 import nuvio.composeapp.generated.resources.compose_player_playing
 import nuvio.composeapp.generated.resources.live_tv_action_back_to_top
+import nuvio.composeapp.generated.resources.live_tv_filter_all_playlists
+import nuvio.composeapp.generated.resources.live_tv_filter_choose_playlist
 import nuvio.composeapp.generated.resources.live_tv_filter_choose_category
 import nuvio.composeapp.generated.resources.live_tv_filter_favorites
 import nuvio.composeapp.generated.resources.live_tv_group_all_channels
@@ -101,27 +104,47 @@ fun PlayerLiveChannelsPanel(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var filterMode by rememberSaveable { mutableStateOf(PlayerLiveChannelFilterMode.All) }
     var selectedCategoryName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedPlaylistId by rememberSaveable { mutableStateOf<String?>(null) }
 
     val allChannelsLabel = stringResource(Res.string.live_tv_group_all_channels)
     val favoritesLabel = stringResource(Res.string.live_tv_filter_favorites)
     val uncategorizedLabel = stringResource(Res.string.live_tv_group_uncategorized)
     val chooseCategoryLabel = stringResource(Res.string.live_tv_filter_choose_category)
+    val allPlaylistsLabel = stringResource(Res.string.live_tv_filter_all_playlists)
+    val choosePlaylistLabel = stringResource(Res.string.live_tv_filter_choose_playlist)
+
+    val activePlaylists = remember(liveTvUiState.playlists) {
+        liveTvUiState.playlists.filter { it.isEnabled }
+    }
+    val selectedPlaylist = remember(activePlaylists, selectedPlaylistId) {
+        activePlaylists.firstOrNull { it.id == selectedPlaylistId }
+    }
+
+    val channelsInPlaylist = remember(channels, selectedPlaylistId, selectedPlaylist) {
+        if (selectedPlaylistId == null) {
+            channels
+        } else {
+            channels.filter { channel ->
+                channel.playlistId == selectedPlaylistId || channel.playlistName == selectedPlaylist?.name
+            }
+        }
+    }
 
     val categoryOptions = remember(
-        channels,
+        channelsInPlaylist,
         allChannelsLabel,
         favoritesLabel,
         uncategorizedLabel,
     ) {
         buildPlayerLiveChannelCategoryFilterOptions(
-            channels = channels,
+            channels = channelsInPlaylist,
             allChannelsLabel = allChannelsLabel,
             favoritesLabel = favoritesLabel,
             uncategorizedLabel = uncategorizedLabel,
         )
     }
     val visibleChannels = remember(
-        channels,
+        channelsInPlaylist,
         favoriteChannelIds,
         filterMode,
         selectedCategoryName,
@@ -129,7 +152,7 @@ fun PlayerLiveChannelsPanel(
         uncategorizedLabel,
     ) {
         filterPlayerLiveChannels(
-            channels = channels,
+            channels = channelsInPlaylist,
             favoriteChannelIds = favoriteChannelIds,
             filterMode = filterMode,
             selectedCategoryName = selectedCategoryName,
@@ -138,7 +161,7 @@ fun PlayerLiveChannelsPanel(
         )
     }
 
-    LaunchedEffect(searchQuery, filterMode, selectedCategoryName) {
+    LaunchedEffect(searchQuery, filterMode, selectedCategoryName, selectedPlaylistId) {
         listState.scrollToItem(0)
     }
 
@@ -232,6 +255,15 @@ fun PlayerLiveChannelsPanel(
                             chooseCategoryLabel = chooseCategoryLabel,
                             categoryOptions = categoryOptions.filter { option ->
                                 option.mode == PlayerLiveChannelFilterMode.Category
+                            },
+                            playlists = activePlaylists,
+                            selectedPlaylist = selectedPlaylist,
+                            allPlaylistsLabel = allPlaylistsLabel,
+                            choosePlaylistLabel = choosePlaylistLabel,
+                            onPlaylistSelected = { playlist ->
+                                selectedPlaylistId = playlist?.id
+                                filterMode = PlayerLiveChannelFilterMode.All
+                                selectedCategoryName = null
                             },
                             onAllChannelsClick = {
                                 filterMode = PlayerLiveChannelFilterMode.All
@@ -336,6 +368,11 @@ private fun PlayerLiveChannelFilterRow(
     favoritesLabel: String,
     chooseCategoryLabel: String,
     categoryOptions: List<PlayerLiveChannelCategoryFilterOption>,
+    playlists: List<LiveTvPlaylist>,
+    selectedPlaylist: LiveTvPlaylist?,
+    allPlaylistsLabel: String,
+    choosePlaylistLabel: String,
+    onPlaylistSelected: (LiveTvPlaylist?) -> Unit,
     onAllChannelsClick: () -> Unit,
     onFavoritesClick: () -> Unit,
     onCategoryOptionClick: (PlayerLiveChannelCategoryFilterOption) -> Unit,
@@ -348,6 +385,16 @@ private fun PlayerLiveChannelFilterRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (playlists.isNotEmpty()) {
+            PlayerLiveChannelPlaylistFilterChip(
+                label = selectedPlaylist?.name ?: choosePlaylistLabel.ifBlank { allPlaylistsLabel },
+                selected = selectedPlaylist != null,
+                playlists = playlists,
+                selectedPlaylist = selectedPlaylist,
+                allPlaylistsLabel = allPlaylistsLabel,
+                onPlaylistSelected = onPlaylistSelected,
+            )
+        }
         PlayerLiveChannelFilterChip(
             label = allChannelsLabel,
             selected = filterMode == PlayerLiveChannelFilterMode.All,
@@ -364,6 +411,86 @@ private fun PlayerLiveChannelFilterRow(
             options = categoryOptions,
             onOptionClick = onCategoryOptionClick,
         )
+    }
+}
+
+@Composable
+private fun PlayerLiveChannelPlaylistFilterChip(
+    label: String,
+    selected: Boolean,
+    playlists: List<LiveTvPlaylist>,
+    selectedPlaylist: LiveTvPlaylist?,
+    allPlaylistsLabel: String,
+    onPlaylistSelected: (LiveTvPlaylist?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val colorScheme = MaterialTheme.colorScheme
+    Box {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(if (selected) colorScheme.primaryContainer else colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .border(
+                    width = 1.dp,
+                    color = if (selected) colorScheme.primary.copy(alpha = 0.45f) else colorScheme.outlineVariant.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(999.dp),
+                )
+                .clickable { expanded = true }
+                .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = label,
+                color = if (selected) colorScheme.onPrimaryContainer else colorScheme.onSurface,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                imageVector = Icons.Rounded.KeyboardArrowDown,
+                contentDescription = null,
+                tint = if (selected) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .widthIn(min = 280.dp, max = 420.dp)
+                .heightIn(max = 560.dp),
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = allPlaylistsLabel,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onPlaylistSelected(null)
+                },
+            )
+            playlists.forEach { playlist ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = playlist.name,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onPlaylistSelected(playlist)
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -596,9 +723,17 @@ private fun LiveChannelRow(
                     }
                 }
             }
-            if (!channel.group.isNullOrBlank()) {
+            val groupText = channel.group
+            val playlistText = channel.playlistName
+            val subtitle = when {
+                !playlistText.isNullOrBlank() && !groupText.isNullOrBlank() -> "$playlistText • $groupText"
+                !playlistText.isNullOrBlank() -> playlistText
+                !groupText.isNullOrBlank() -> groupText
+                else -> null
+            }
+            if (!subtitle.isNullOrBlank()) {
                 Text(
-                    text = channel.group,
+                    text = subtitle,
                     color = colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     maxLines = 1,

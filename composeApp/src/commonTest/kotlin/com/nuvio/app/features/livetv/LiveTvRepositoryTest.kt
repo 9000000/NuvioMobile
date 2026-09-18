@@ -51,4 +51,29 @@ class LiveTvRepositoryTest {
         assertEquals("https://hbo.com", channel.headers["Referer"])
         assertEquals("secret123", channel.headers["X-Token"])
     }
+
+    @Test
+    fun parseM3uWithPlaylistMetadata() {
+        val playlistSource = """
+            #EXTM3U
+            #EXTINF:-1 tvg-name="Discovery Channel" group-title="Documentary",Discovery
+            https://stream.example.com/discovery.m3u8
+        """.trimIndent()
+
+        val playlist = LiveTvPlaylist(
+            id = "playlist-123",
+            name = "My IPTV List",
+            type = LiveTvPlaylistType.Url,
+            source = "https://example.com/list.m3u",
+            isEnabled = true,
+        )
+
+        val channels = parseM3uPlaylist(playlistSource, playlist)
+        assertEquals(1, channels.size)
+
+        val channel = channels.first()
+        assertEquals("Discovery", channel.name)
+        assertEquals("playlist-123", channel.playlistId)
+        assertEquals("My IPTV List", channel.playlistName)
+    }
 }

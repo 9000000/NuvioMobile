@@ -2401,4 +2401,6 @@
     <string name="live_tv_settings_save_playlist">Save</string>
     <string name="live_tv_settings_cancel_edit">Cancel</string>
     <string name="compose_player_channels">Channels</string>
+    <string name="live_tv_filter_all_playlists">All playlists</string>
+    <string name="live_tv_filter_choose_playlist">Playlists</string>
 </resources>

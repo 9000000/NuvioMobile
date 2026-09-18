@@ -54,6 +54,8 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.live_tv_categories
 import org.jetbrains.compose.resources.stringResource
 
+import androidx.compose.material.icons.rounded.FormatListBulleted
+
 @Composable
 internal fun LiveTvFilterPanelRow(
     groups: List<String>,
@@ -66,12 +68,27 @@ internal fun LiveTvFilterPanelRow(
     onFavoritesSelected: () -> Unit,
     onGroupSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
+    playlists: List<LiveTvPlaylist> = emptyList(),
+    selectedPlaylist: LiveTvPlaylist? = null,
+    playlistLabel: String = "",
+    allPlaylistsLabel: String = "",
+    onPlaylistSelected: (LiveTvPlaylist?) -> Unit = {},
 ) {
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s8),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (playlists.isNotEmpty()) {
+            LiveTvPlaylistPanelChip(
+                label = selectedPlaylist?.name ?: playlistLabel.ifBlank { allPlaylistsLabel },
+                selectedPlaylist = selectedPlaylist,
+                playlists = playlists,
+                playlistTitle = playlistLabel.ifBlank { allPlaylistsLabel },
+                allPlaylistsLabel = allPlaylistsLabel,
+                onPlaylistSelected = onPlaylistSelected,
+            )
+        }
         LiveTvPanelFilterChip(
             label = allLabel,
             selected = selectedGroup.isNullOrBlank() && !favoritesOnly,
@@ -383,3 +400,158 @@ private fun LiveTvFilterSheetRow(
 private fun LiveTvFilterSheetDivider() {
     HorizontalDivider(color = MaterialTheme.nuvio.colors.borderSubtle.copy(alpha = 0.7f))
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LiveTvPlaylistPanelChip(
+    label: String,
+    selectedPlaylist: LiveTvPlaylist?,
+    playlists: List<LiveTvPlaylist>,
+    playlistTitle: String,
+    allPlaylistsLabel: String,
+    onPlaylistSelected: (LiveTvPlaylist?) -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+    var isSheetVisible by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val coroutineScope = rememberCoroutineScope()
+    val selected = selectedPlaylist != null
+    val shape = tokens.shapes.chip
+
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(if (selected) tokens.colors.overlaySelected else tokens.colors.surface)
+            .border(
+                width = if (selected) 0.dp else NuvioTokens.Border.thin,
+                color = if (selected) Color.Transparent else tokens.colors.borderSubtle,
+                shape = shape,
+            )
+            .clickable { isSheetVisible = true }
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s6),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.FormatListBulleted,
+            contentDescription = null,
+            modifier = Modifier.size(NuvioTokens.Icon.sm + NuvioTokens.Space.s2),
+            tint = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) tokens.colors.accent else tokens.colors.textSecondary,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Icon(
+            imageVector = Icons.Rounded.KeyboardArrowDown,
+            contentDescription = null,
+            modifier = Modifier.size(NuvioTokens.Icon.sm + NuvioTokens.Space.s2),
+            tint = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+        )
+    }
+
+    if (isSheetVisible) {
+        LiveTvPlaylistOptionsSheet(
+            title = playlistTitle,
+            playlists = playlists,
+            selectedPlaylist = selectedPlaylist,
+            allPlaylistsLabel = allPlaylistsLabel,
+            sheetState = sheetState,
+            onDismiss = {
+                coroutineScope.launch {
+                    dismissNuvioBottomSheet(
+                        sheetState = sheetState,
+                        onDismiss = { isSheetVisible = false },
+                    )
+                }
+            },
+            onAllPlaylistsSelected = {
+                onPlaylistSelected(null)
+                coroutineScope.launch {
+                    dismissNuvioBottomSheet(
+                        sheetState = sheetState,
+                        onDismiss = { isSheetVisible = false },
+                    )
+                }
+            },
+            onPlaylistSelected = { playlist ->
+                onPlaylistSelected(playlist)
+                coroutineScope.launch {
+                    dismissNuvioBottomSheet(
+                        sheetState = sheetState,
+                        onDismiss = { isSheetVisible = false },
+                    )
+                }
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LiveTvPlaylistOptionsSheet(
+    title: String,
+    playlists: List<LiveTvPlaylist>,
+    selectedPlaylist: LiveTvPlaylist?,
+    allPlaylistsLabel: String,
+    sheetState: SheetState,
+    onDismiss: () -> Unit,
+    onAllPlaylistsSelected: () -> Unit,
+    onPlaylistSelected: (LiveTvPlaylist) -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+    NuvioModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+                .widthIn(max = tokens.components.sheetMaxWidth)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(bottom = tokens.spacing.screenHorizontal),
+        ) {
+            item(key = "live_tv_playlist_title") {
+                Text(
+                    text = title,
+                    modifier = Modifier.padding(
+                        horizontal = tokens.spacing.screenHorizontal,
+                        vertical = NuvioTokens.Space.s14,
+                    ),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = tokens.colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                LiveTvFilterSheetDivider()
+            }
+            item(key = "live_tv_playlist_all") {
+                LiveTvFilterSheetRow(
+                    title = allPlaylistsLabel,
+                    icon = Icons.Rounded.FormatListBulleted,
+                    selected = selectedPlaylist == null,
+                    onClick = onAllPlaylistsSelected,
+                )
+                LiveTvFilterSheetDivider()
+            }
+            items(
+                items = playlists,
+                key = { playlist -> playlist.id },
+            ) { playlist ->
+                LiveTvFilterSheetRow(
+                    title = playlist.name,
+                    selected = playlist.id == selectedPlaylist?.id,
+                    onClick = { onPlaylistSelected(playlist) },
+                )
+                if (playlist != playlists.lastOrNull()) {
+                    LiveTvFilterSheetDivider()
+                }
+            }
+        }
+    }
+}
+

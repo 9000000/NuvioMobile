@@ -24,6 +24,8 @@ import com.nuvio.app.features.downloads.DownloadsLiveStatusPlatform
 import com.nuvio.app.features.downloads.DownloadsPlatformDownloader
 import com.nuvio.app.features.downloads.DownloadsStorage
 import com.nuvio.app.features.library.LibraryDisplaySettingsStorage
+import com.nuvio.app.features.livetv.LiveTvRepository
+import com.nuvio.app.features.livetv.LiveTvStorage
 import com.nuvio.app.features.membership.MemberAssetStorage
 import com.nuvio.app.features.library.LibraryStorage
 import com.nuvio.app.features.details.MetaScreenSettingsStorage
@@ -101,6 +103,8 @@ open class MainActivity : AppCompatActivity() {
         P2pSettingsStorage.initialize(applicationContext)
         TorrServerSettingsStorage.initialize(applicationContext)
         TorrServerConfigRepository.ensureLoaded()
+        LiveTvStorage.initialize(applicationContext)
+        LiveTvRepository.ensureLoaded()
         P2pStreamingEngine.initialize(applicationContext)
         ExternalPlayerPlatform.initialize(applicationContext)
         SubtitleFileCache.initialize(applicationContext)

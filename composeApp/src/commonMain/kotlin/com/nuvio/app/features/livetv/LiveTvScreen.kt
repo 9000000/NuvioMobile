@@ -87,6 +87,8 @@ import nuvio.composeapp.generated.resources.live_tv_group_uncategorized
 import nuvio.composeapp.generated.resources.live_tv_last_watched_title
 import nuvio.composeapp.generated.resources.live_tv_load_failed
 import nuvio.composeapp.generated.resources.live_tv_no_matching_channels_message
+import nuvio.composeapp.generated.resources.live_tv_filter_all_playlists
+import nuvio.composeapp.generated.resources.live_tv_filter_choose_playlist
 import nuvio.composeapp.generated.resources.live_tv_no_matching_channels_title
 import nuvio.composeapp.generated.resources.live_tv_no_playlist_message
 import nuvio.composeapp.generated.resources.live_tv_no_playlist_title
@@ -115,20 +117,40 @@ fun LiveTvScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var filterMode by rememberSaveable { mutableStateOf(LiveTvChannelFilterMode.All) }
     var selectedCategoryName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedPlaylistId by rememberSaveable { mutableStateOf<String?>(null) }
 
     val allChannelsLabel = stringResource(Res.string.live_tv_group_all_channels)
     val favoritesLabel = stringResource(Res.string.live_tv_filter_favorites)
     val uncategorizedLabel = stringResource(Res.string.live_tv_group_uncategorized)
     val chooseCategoryLabel = stringResource(Res.string.live_tv_filter_choose_category)
+    val allPlaylistsLabel = stringResource(Res.string.live_tv_filter_all_playlists)
+    val choosePlaylistLabel = stringResource(Res.string.live_tv_filter_choose_playlist)
+
+    val activePlaylists = remember(uiState.playlists) {
+        uiState.playlists.filter { it.isEnabled }
+    }
+    val selectedPlaylist = remember(activePlaylists, selectedPlaylistId) {
+        activePlaylists.firstOrNull { it.id == selectedPlaylistId }
+    }
+
+    val channelsInPlaylist = remember(uiState.channels, selectedPlaylistId) {
+        if (selectedPlaylistId == null) {
+            uiState.channels
+        } else {
+            uiState.channels.filter { channel ->
+                channel.playlistId == selectedPlaylistId || channel.playlistName == selectedPlaylist?.name
+            }
+        }
+    }
 
     val categoryOptions = remember(
-        uiState.channels,
+        channelsInPlaylist,
         allChannelsLabel,
         favoritesLabel,
         uncategorizedLabel,
     ) {
         buildLiveTvCategoryFilterOptions(
-            channels = uiState.channels,
+            channels = channelsInPlaylist,
             allChannelsLabel = allChannelsLabel,
             favoritesLabel = favoritesLabel,
             uncategorizedLabel = uncategorizedLabel,
@@ -136,7 +158,7 @@ fun LiveTvScreen(
     }
 
     val visibleChannels = remember(
-        uiState.channels,
+        channelsInPlaylist,
         uiState.favoriteChannelIds,
         filterMode,
         selectedCategoryName,
@@ -144,7 +166,7 @@ fun LiveTvScreen(
         uncategorizedLabel,
     ) {
         filterLiveTvChannels(
-            channels = uiState.channels,
+            channels = channelsInPlaylist,
             favoriteChannelIds = uiState.favoriteChannelIds,
             filterMode = filterMode,
             selectedCategoryName = selectedCategoryName,
@@ -170,7 +192,7 @@ fun LiveTvScreen(
         }
     }
 
-    LaunchedEffect(searchQuery, filterMode, selectedCategoryName) {
+    LaunchedEffect(searchQuery, filterMode, selectedCategoryName, selectedPlaylistId) {
         listState.scrollToItem(0)
     }
 
@@ -284,6 +306,15 @@ fun LiveTvScreen(
                             allLabel = allChannelsLabel,
                             favoritesLabel = favoritesLabel,
                             categoryLabel = chooseCategoryLabel,
+                            playlists = activePlaylists,
+                            selectedPlaylist = selectedPlaylist,
+                            playlistLabel = choosePlaylistLabel,
+                            allPlaylistsLabel = allPlaylistsLabel,
+                            onPlaylistSelected = { playlist ->
+                                selectedPlaylistId = playlist?.id
+                                filterMode = LiveTvChannelFilterMode.All
+                                selectedCategoryName = null
+                            },
                             onAllSelected = {
                                 filterMode = LiveTvChannelFilterMode.All
                                 selectedCategoryName = null
@@ -599,7 +630,10 @@ private fun LiveTvRecentChannelCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                LiveTvCategoryLine(categoryName = categoryName)
+                LiveTvCategoryLine(
+                    categoryName = categoryName,
+                    playlistName = channel.playlistName,
+                )
             }
 
             Surface(
@@ -683,7 +717,10 @@ private fun LiveTvChannelCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                LiveTvCategoryLine(categoryName = categoryName)
+                LiveTvCategoryLine(
+                    categoryName = categoryName,
+                    playlistName = channel.playlistName,
+                )
             }
             IconButton(onClick = onFavoriteClick) {
                 Icon(
@@ -711,8 +748,16 @@ private fun LiveTvChannelCard(
 }
 
 @Composable
-private fun LiveTvCategoryLine(categoryName: String) {
+private fun LiveTvCategoryLine(
+    categoryName: String,
+    playlistName: String? = null,
+) {
     val tokens = MaterialTheme.nuvio
+    val displayText = if (!playlistName.isNullOrBlank()) {
+        "$playlistName • $categoryName"
+    } else {
+        categoryName
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -724,7 +769,7 @@ private fun LiveTvCategoryLine(categoryName: String) {
                 .background(tokens.colors.accent),
         )
         Text(
-            text = categoryName,
+            text = displayText,
             style = MaterialTheme.typography.bodySmall,
             color = tokens.colors.textMuted,
             maxLines = 1,

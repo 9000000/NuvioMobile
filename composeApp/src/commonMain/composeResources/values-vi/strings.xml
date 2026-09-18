@@ -2366,4 +2366,6 @@
     <string name="live_tv_settings_save_playlist">Lưu</string>
     <string name="live_tv_settings_cancel_edit">Hủy</string>
     <string name="compose_player_channels">Kênh</string>
+    <string name="live_tv_filter_all_playlists">Tất cả danh sách phát</string>
+    <string name="live_tv_filter_choose_playlist">Danh sách phát</string>
 </resources>
