@@ -191,7 +191,6 @@ fun LiveTvScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalPadding = 16.dp,
             listState = listState,
-            autoHidesNativeTabBar = true,
         ) {
         item {
             NuvioScreenHeader(

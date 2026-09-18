@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.People
@@ -35,6 +36,7 @@ import nuvio.composeapp.generated.resources.compose_settings_page_advanced
 import nuvio.composeapp.generated.resources.compose_settings_page_appearance
 import nuvio.composeapp.generated.resources.compose_settings_page_integrations
 import nuvio.composeapp.generated.resources.compose_settings_page_licenses_attributions
+import nuvio.composeapp.generated.resources.compose_settings_page_live_tv
 import nuvio.composeapp.generated.resources.compose_settings_page_notifications
 import nuvio.composeapp.generated.resources.compose_settings_page_playback
 import nuvio.composeapp.generated.resources.compose_settings_page_privacy_policy
@@ -59,6 +61,7 @@ import nuvio.composeapp.generated.resources.compose_settings_root_advanced_descr
 import nuvio.composeapp.generated.resources.compose_settings_root_advanced_section
 import nuvio.composeapp.generated.resources.compose_settings_page_content_discovery
 import nuvio.composeapp.generated.resources.compose_settings_page_tracking
+import nuvio.composeapp.generated.resources.settings_integrations_live_tv_description
 import nuvio.composeapp.generated.resources.settings_playback_subtitle
 import nuvio.composeapp.generated.resources.settings_torrserver
 import nuvio.composeapp.generated.resources.settings_torrserver_description
@@ -87,6 +90,7 @@ internal fun LazyListScope.settingsRootContent(
     onAccountClick: () -> Unit,
     onSwitchProfileClick: (() -> Unit)? = null,
     onTorrServerClick: () -> Unit,
+    onLiveTvClick: () -> Unit,
     showAccountSection: Boolean = true,
     showGeneralSection: Boolean = true,
     showAboutSection: Boolean = true,
@@ -166,6 +170,14 @@ internal fun LazyListScope.settingsRootContent(
                         icon = Icons.Rounded.PlayArrow,
                         isTablet = isTablet,
                         onClick = onPlaybackClick,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.compose_settings_page_live_tv),
+                        description = stringResource(Res.string.settings_integrations_live_tv_description),
+                        icon = Icons.Rounded.LiveTv,
+                        isTablet = isTablet,
+                        onClick = onLiveTvClick,
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(

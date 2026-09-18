@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.People
@@ -115,6 +116,7 @@ internal fun settingsSearchEntries(
     val collectionsPage = stringResource(Res.string.collections_header)
     val tmdbPage = stringResource(Res.string.compose_settings_page_tmdb_enrichment)
     val mdbListPage = stringResource(Res.string.compose_settings_page_mdblist_ratings)
+    val liveTvPage = stringResource(Res.string.compose_settings_page_live_tv)
 
     val entries = mutableListOf<SettingsSearchEntry>()
 
@@ -268,6 +270,13 @@ internal fun settingsSearchEntries(
         title = integrationsPage,
         description = stringResource(Res.string.compose_settings_root_integrations_description),
         icon = Icons.Rounded.Link,
+    )
+    addPage(
+        page = SettingsPage.LiveTv,
+        key = "live_tv",
+        title = liveTvPage,
+        description = stringResource(Res.string.settings_integrations_live_tv_description),
+        icon = Icons.Rounded.LiveTv,
     )
     addPage(
         page = SettingsPage.Notifications,

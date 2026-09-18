@@ -157,6 +157,7 @@ class DownloadSubtitlesTest {
 
     @Test
     fun externalPlayersReceiveReadableLocalSubtitlesWithoutAddonRequests(): Unit = runBlocking {
+        org.junit.Assume.assumeTrue("FileProvider requires Unix-style path separators", File.separatorChar == '/')
         val context = RuntimeEnvironment.getApplication()
         val provider = ProviderInfo().apply {
             authority = "${context.packageName}.fileprovider"

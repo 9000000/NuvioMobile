@@ -20,6 +20,7 @@ import nuvio.composeapp.generated.resources.compose_settings_page_continue_watch
 import nuvio.composeapp.generated.resources.compose_settings_page_homescreen
 import nuvio.composeapp.generated.resources.compose_settings_page_integrations
 import nuvio.composeapp.generated.resources.compose_settings_page_licenses_attributions
+import nuvio.composeapp.generated.resources.compose_settings_page_live_tv
 import nuvio.composeapp.generated.resources.compose_settings_page_mdblist_ratings
 import nuvio.composeapp.generated.resources.compose_settings_page_meta_screen
 import nuvio.composeapp.generated.resources.compose_settings_page_notifications
@@ -150,6 +151,11 @@ internal enum class SettingsPage(
         titleRes = Res.string.compose_settings_page_debrid,
         category = SettingsCategory.General,
         parentPage = Integrations,
+    ),
+    LiveTv(
+        titleRes = Res.string.compose_settings_page_live_tv,
+        category = SettingsCategory.General,
+        parentPage = Root,
     ),
     TorrServer(
         titleRes = Res.string.settings_torrserver,

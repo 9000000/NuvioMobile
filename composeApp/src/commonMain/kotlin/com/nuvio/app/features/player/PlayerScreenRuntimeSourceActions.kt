@@ -17,6 +17,8 @@ import com.nuvio.app.features.torrserver.TorrServerService
 import com.nuvio.app.features.torrserver.buildTorrServerMagnet
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamLinkCacheRepository
+import com.nuvio.app.features.livetv.LiveTvChannel
+import com.nuvio.app.features.livetv.LiveTvRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import kotlinx.coroutines.launch
@@ -430,6 +432,62 @@ internal fun PlayerScreenRuntime.playNextEpisode() {
     }
 }
 
+internal fun PlayerScreenRuntime.switchToLiveChannel(channel: LiveTvChannel) {
+    scope.launch {
+        val playableChannel = runCatching { LiveTvRepository.prepareForPlayback(channel) }.getOrDefault(channel)
+        switchToPreparedLiveChannel(playableChannel)
+    }
+}
+
+private fun PlayerScreenRuntime.switchToPreparedLiveChannel(channel: LiveTvChannel) {
+    LiveTvRepository.markChannelWatched(channel)
+
+    if (channel.streamUrl == activeSourceUrl) {
+        activeStreamTitle = channel.name
+        activeStreamSubtitle = channel.group
+        activeLogo = channel.logoUrl
+        activeVideoId = channel.id
+        showLiveChannelsPanel = false
+        controlsVisible = true
+        return
+    }
+    if (shouldTrackWatchProgress) {
+        flushWatchProgress()
+    }
+    stopActiveP2pStream()
+    activeSourceUrl = channel.streamUrl
+    activeSourceAudioUrl = null
+    activeSourceHeaders = sanitizePlaybackHeaders(channel.headers)
+    activeSourceResponseHeaders = emptyMap()
+    activeStreamTitle = channel.name
+    activeStreamSubtitle = channel.group
+    activeProviderName = "Live TV"
+    activeProviderAddonId = null
+    activeLogo = channel.logoUrl
+    currentStreamBingeGroup = null
+    activeSeasonNumber = null
+    activeEpisodeNumber = null
+    activeEpisodeTitle = null
+    activeStreamType = channel.streamType
+    activeEpisodeThumbnail = null
+    activeVideoId = channel.id
+    activeInitialPositionMs = 0L
+    activeInitialProgressFraction = null
+    initialSeekApplied = true
+    showSourcesPanel = false
+    showEpisodesPanel = false
+    showLiveChannelsPanel = false
+    controlsVisible = true
+    initialLoadCompleted = false
+    playbackSnapshot = playbackSnapshot.copy(
+        isLoading = true,
+        videoWidth = 0,
+        videoHeight = 0,
+    )
+    errorMessage = null
+    shouldPlay = true
+}
+
 internal fun PlayerScreenRuntime.openSourcesPanel() {
     val vid = activeVideoId ?: return
     PlayerStreamsRepository.loadSources(
@@ -440,6 +498,7 @@ internal fun PlayerScreenRuntime.openSourcesPanel() {
     )
     showSourcesPanel = true
     showEpisodesPanel = false
+    showLiveChannelsPanel = false
     controlsVisible = false
 }
 
@@ -451,6 +510,7 @@ internal fun PlayerScreenRuntime.openEpisodesPanel() {
     }
     showEpisodesPanel = true
     showSourcesPanel = false
+    showLiveChannelsPanel = false
     controlsVisible = false
 }
 
@@ -460,6 +520,7 @@ private fun PlayerScreenRuntime.resetEpisodePanelAndNextEpisodeState() {
     showNextEpisodeCard = false
     showSourcesPanel = false
     showEpisodesPanel = false
+    showLiveChannelsPanel = false
     episodeStreamsPanelState = EpisodeStreamsPanelState()
     nextEpisodeAutoPlayJob?.cancel()
     nextEpisodeAutoPlaySearching = false

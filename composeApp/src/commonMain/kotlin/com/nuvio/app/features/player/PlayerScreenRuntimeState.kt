@@ -12,6 +12,7 @@ import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaDetailsUiState
 import com.nuvio.app.features.details.MetaScreenSettingsUiState
 import com.nuvio.app.features.details.MetaVideo
+import com.nuvio.app.features.livetv.LiveTvUiState
 import com.nuvio.app.features.p2p.P2pSettingsUiState
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.player.skip.NextEpisodeInfo
@@ -62,6 +63,7 @@ internal class PlayerScreenRuntime(
     val initialProgressFraction: Float? get() = args.initialProgressFraction
     var externalSubtitles by mutableStateOf(args.externalSubtitles)
     val isSeries: Boolean get() = parentMetaType == "series"
+    val isLiveTvPlayback: Boolean get() = contentType == "live"
 
     lateinit var scope: CoroutineScope
     lateinit var hapticFeedback: HapticFeedback
@@ -73,6 +75,7 @@ internal class PlayerScreenRuntime(
     var metaScreenSettingsUiState: MetaScreenSettingsUiState = MetaScreenSettingsUiState()
     var watchedUiState: WatchedUiState = WatchedUiState()
     var watchProgressUiState: WatchProgressUiState = WatchProgressUiState()
+    var liveTvUiState: LiveTvUiState = LiveTvUiState()
     var sourceStreamsState by mutableStateOf(StreamsUiState())
     var episodeStreamsRepoState by mutableStateOf(StreamsUiState())
     var metaUiState: MetaDetailsUiState = MetaDetailsUiState()
@@ -117,6 +120,7 @@ internal class PlayerScreenRuntime(
     var activeStreamSubtitle by mutableStateOf(streamSubtitle)
     var activeProviderName by mutableStateOf(providerName)
     var activeProviderAddonId by mutableStateOf(providerAddonId)
+    var activeLogo by mutableStateOf(logo)
     var currentStreamBingeGroup by mutableStateOf(initialBingeGroup)
     var activeSeasonNumber by mutableStateOf(seasonNumber)
     var activeEpisodeNumber by mutableStateOf(episodeNumber)
@@ -160,6 +164,7 @@ internal class PlayerScreenRuntime(
 
     var showSourcesPanel by mutableStateOf(false)
     var showEpisodesPanel by mutableStateOf(false)
+    var showLiveChannelsPanel by mutableStateOf(false)
     var showSubmitIntroModal by mutableStateOf(false)
     var torrentPickerStream by mutableStateOf<StreamItem?>(null)
     var torrentPickerFiles by mutableStateOf<List<TorrServerRemoteFile>>(emptyList())
@@ -209,6 +214,17 @@ internal class PlayerScreenRuntime(
     var trackPreferenceRestoreApplied by mutableStateOf(false)
     var subtitleDelayMs by mutableStateOf(0)
     var subtitleAutoSyncState by mutableStateOf(SubtitleAutoSyncUiState())
+
+    val isAnyOverlayVisible: Boolean
+        get() = showAudioModal ||
+            showSubtitleModal ||
+            showVideoSettingsModal ||
+            showSourcesPanel ||
+            showEpisodesPanel ||
+            showLiveChannelsPanel ||
+            showSubmitIntroModal ||
+            showParentalGuide ||
+            episodeStreamsPanelState.showStreams
 
     var lastSyncedSettingsResizeMode: PlayerResizeMode? = null
     var lastResetPlaybackIdentity: String? = null

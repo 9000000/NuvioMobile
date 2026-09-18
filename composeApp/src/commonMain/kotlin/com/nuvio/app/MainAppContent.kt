@@ -57,6 +57,8 @@ import com.nuvio.app.core.auth.DeviceSessionRegistration
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.deeplink.AppDeepLink
 import com.nuvio.app.core.deeplink.AppDeepLinkRepository
+import com.nuvio.app.features.livetv.LiveTvChannel
+import com.nuvio.app.features.livetv.LiveTvRepository
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.NetworkStatusRepository
@@ -249,6 +251,7 @@ internal fun MainAppContent(
         val searchScrollToTopRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
         val searchListState = rememberLazyListState()
         val libraryScrollToTopRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
+        val liveTvScrollToTopRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
         val settingsRootActionRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
         val currentRoute = navBackStack.lastOrNull() as? AppRoute
         LaunchedEffect(currentRoute, posterNavigationEnabled) {
@@ -407,6 +410,7 @@ internal fun MainAppContent(
                 searchScrollToTopRequests.tryEmit(Unit)
             }
             AppScreenTab.Library -> libraryScrollToTopRequests.tryEmit(Unit)
+            AppScreenTab.LiveTv -> liveTvScrollToTopRequests.tryEmit(Unit)
             AppScreenTab.Settings -> settingsRootActionRequests.tryEmit(Unit)
         }
     }
@@ -1270,6 +1274,36 @@ internal fun MainAppContent(
             selectedContinueWatchingForActions = item
         }
 
+        val liveTvUiState by LiveTvRepository.uiState.collectAsStateWithLifecycle()
+        val showLiveTvInNavigation = liveTvUiState.showInNavigation
+
+        val onLiveTvChannelClick: (LiveTvChannel) -> Unit = { channel ->
+            coroutineScope.launch {
+                val playableChannel = runCatching {
+                    LiveTvRepository.prepareForPlayback(channel)
+                }.getOrDefault(channel)
+                val launchId = PlayerLaunchStore.put(
+                    PlayerLaunch(
+                        profileId = activePlaybackProfileId,
+                        title = playableChannel.name,
+                        sourceUrl = playableChannel.streamUrl,
+                        sourceHeaders = playableChannel.headers,
+                        streamType = playableChannel.streamType,
+                        logo = playableChannel.logoUrl,
+                        streamTitle = playableChannel.name,
+                        streamSubtitle = playableChannel.group,
+                        providerName = "Live TV",
+                        providerAddonId = "live-tv",
+                        contentType = "live",
+                        videoId = playableChannel.id,
+                        parentMetaId = playableChannel.id,
+                        parentMetaType = "live",
+                    ),
+                )
+                navController.navigate(PlayerRoute(launchId = launchId))
+            }
+        }
+
         AppUpdaterHost(
             controller = appUpdaterController,
             modifier = Modifier.fillMaxSize(),
@@ -1317,16 +1351,19 @@ internal fun MainAppContent(
                         useNativeTabBar = useNativeTabBar,
                         liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
                         liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
+                        showLiveTvInNavigation = showLiveTvInNavigation,
                         requests = remember(
                             homeScrollToTopRequests,
                             searchScrollToTopRequests,
                             libraryScrollToTopRequests,
+                            liveTvScrollToTopRequests,
                             settingsRootActionRequests,
                         ) {
                             AppTabRequests(
                                 homeScrollToTopRequests = homeScrollToTopRequests,
                                 searchScrollToTopRequests = searchScrollToTopRequests,
                                 libraryScrollToTopRequests = libraryScrollToTopRequests,
+                                liveTvScrollToTopRequests = liveTvScrollToTopRequests,
                                 settingsRootActionRequests = settingsRootActionRequests,
                             )
                         },
@@ -1415,6 +1452,7 @@ internal fun MainAppContent(
                                 },
                                 onContinueWatchingClick = onContinueWatchingClick,
                                 onContinueWatchingLongPress = onContinueWatchingLongPress,
+                                onLiveTvChannelClick = onLiveTvChannelClick,
                                 onSwitchProfile = onSwitchProfile,
                                 onSettingsPageClick = if (useNativeNavigation && !isTabletLayout) {
                                     { pageName, title ->

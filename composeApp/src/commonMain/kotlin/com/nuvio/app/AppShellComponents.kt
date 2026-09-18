@@ -32,6 +32,8 @@ import com.nuvio.app.features.library.LibraryItem
 import com.nuvio.app.features.library.LibraryScreen
 import com.nuvio.app.features.library.LibrarySection
 import com.nuvio.app.features.library.LibrarySortOption
+import com.nuvio.app.features.livetv.LiveTvChannel
+import com.nuvio.app.features.livetv.LiveTvScreen
 import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.profiles.ProfileBackgroundBackdrop
 import com.nuvio.app.features.search.SearchScreen
@@ -80,6 +82,7 @@ internal data class AppTabRequests(
     val homeScrollToTopRequests: Flow<Unit>,
     val searchScrollToTopRequests: Flow<Unit>,
     val libraryScrollToTopRequests: Flow<Unit>,
+    val liveTvScrollToTopRequests: Flow<Unit>,
     val settingsRootActionRequests: Flow<Unit>,
 )
 
@@ -109,6 +112,7 @@ internal data class AppTabActions(
     val onTestUpdateBannerClick: (() -> Unit)? = null,
     val onCollectionsSettingsClick: () -> Unit = {},
     val onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
+    val onLiveTvChannelClick: (LiveTvChannel) -> Unit = {},
     val onRequestedSettingsPageConsumed: () -> Unit = {},
     val onInitialHomeContentRendered: () -> Unit = {},
 )
@@ -167,6 +171,13 @@ internal fun AppTabHost(
                     onCloudFilePlay = actions.onCloudFilePlay,
                     onConnectCloudClick = actions.onConnectCloudClick,
                     disintegrationRequest = state.libraryDisintegrationRequest,
+                )
+            }
+
+            AppScreenTab.LiveTv -> {
+                LiveTvScreen(
+                    scrollToTopRequests = requests.liveTvScrollToTopRequests,
+                    onChannelClick = actions.onLiveTvChannelClick,
                 )
             }
 

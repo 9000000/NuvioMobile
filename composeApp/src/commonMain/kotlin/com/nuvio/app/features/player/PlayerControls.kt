@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Replay10
+import androidx.compose.material.icons.rounded.Tv
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -92,6 +93,7 @@ internal fun PlayerControlsShell(
     onVideoSettingsClick: (() -> Unit)? = null,
     onSourcesClick: (() -> Unit)? = null,
     onEpisodesClick: (() -> Unit)? = null,
+    onLiveChannelsClick: (() -> Unit)? = null,
     onOpenInExternalPlayer: (() -> Unit)? = null,
     onSubmitIntroClick: (() -> Unit)? = null,
     parentalWarnings: List<ParentalWarning> = emptyList(),
@@ -194,6 +196,7 @@ internal fun PlayerControlsShell(
                     onAudioClick = onAudioClick,
                     onSourcesClick = onSourcesClick,
                     onEpisodesClick = onEpisodesClick,
+                    onLiveChannelsClick = onLiveChannelsClick,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
@@ -500,6 +503,7 @@ private fun ProgressControls(
     onAudioClick: () -> Unit,
     onSourcesClick: (() -> Unit)? = null,
     onEpisodesClick: (() -> Unit)? = null,
+    onLiveChannelsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val aspectRatioPainter = appIconPainter(AppIconResource.PlayerAspectRatio)
@@ -566,6 +570,13 @@ private fun ProgressControls(
                             label = stringResource(Res.string.compose_player_episodes),
                             painter = episodesPainter,
                             onClick = onEpisodesClick,
+                        )
+                    }
+                    if (onLiveChannelsClick != null) {
+                        PlayerActionPillButton(
+                            label = stringResource(Res.string.compose_player_channels),
+                            icon = Icons.Rounded.Tv,
+                            onClick = onLiveChannelsClick,
                         )
                     }
                 }

@@ -293,7 +293,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
         exit = fadeOut(),
     ) {
         PlayerControlsShell(
-            title = title,
+            title = if (isLiveTvPlayback) activeStreamTitle else title,
             streamTitle = activeStreamTitle,
             providerName = activeProviderName,
             seasonNumber = activeSeasonNumber,
@@ -316,10 +316,16 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
             onSeekBack = { seekBy(-10_000L) },
             onSeekForward = { seekBy(10_000L) },
             onResizeModeClick = { cycleResizeMode() },
-            onSpeedClick = { cyclePlaybackSpeed() },
+            onSpeedClick = {
+                if (!isLiveTvPlayback) {
+                    cyclePlaybackSpeed()
+                }
+            },
             onSubtitleClick = {
-                refreshTracks()
-                showSubtitleModal = true
+                if (!isLiveTvPlayback) {
+                    refreshTracks()
+                    showSubtitleModal = true
+                }
             },
             onAudioClick = {
                 refreshTracks()
@@ -333,8 +339,9 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
             } else {
                 null
             },
-            onSourcesClick = if (activeVideoId != null) { { openSourcesPanel() } } else null,
+            onSourcesClick = if (!isLiveTvPlayback && activeVideoId != null) { { openSourcesPanel() } } else null,
             onEpisodesClick = if (isSeries) { { openEpisodesPanel() } } else null,
+            onLiveChannelsClick = if (isLiveTvPlayback) { { showLiveChannelsPanel = true } } else null,
             onOpenInExternalPlayer = args.onOpenInExternalPlayer?.let { openExternal ->
                 {
                     val loadedSubtitles = addonSubtitles
@@ -415,9 +422,9 @@ private fun BoxScope.RenderPlaybackOverlays(
         horizontalSafePadding = horizontalSafePadding,
         onUnlock = { unlockPlayerControls() },
         showOpeningOverlay = (isP2pActive || playerSettingsUiState.showLoadingOverlay) && !initialLoadCompleted && errorMessage == null,
-        backdropArtwork = background ?: poster,
-        logo = logo,
-        title = title,
+        backdropArtwork = if (isLiveTvPlayback) activeLogo?.takeIf(String::isNotBlank) ?: background ?: poster else background ?: poster,
+        logo = if (isLiveTvPlayback) activeLogo else logo,
+        title = if (isLiveTvPlayback) activeStreamTitle else title,
         onBackWithProgress = {
             flushWatchProgress()
             args.onBack()
@@ -574,6 +581,14 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
         onSourcesPanelDismissed = {
             showSourcesPanel = false
             PlayerStreamsRepository.stopSourcesLoading()
+            controlsVisible = true
+        },
+        showLiveChannelsPanel = showLiveChannelsPanel,
+        liveTvChannels = liveTvUiState.channels,
+        activeLiveChannelId = activeVideoId,
+        onLiveChannelSelected = { channel -> switchToLiveChannel(channel) },
+        onLiveChannelsPanelDismissed = {
+            showLiveChannelsPanel = false
             controlsVisible = true
         },
         isSeries = isSeries,

@@ -58,6 +58,8 @@ import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.isLiquidGlassNativeTabBarSupported
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
+import com.nuvio.app.features.livetv.LiveTvRepository
+import com.nuvio.app.features.livetv.LiveTvUiState
 import com.nuvio.app.features.details.MetaScreenSettingsUiState
 import com.nuvio.app.core.ui.PosterCardStyleRepository
 import com.nuvio.app.core.ui.PosterCardStyleUiState
@@ -237,6 +239,10 @@ fun SettingsScreen(
         }.collectAsStateWithLifecycle()
         val profileSettingsState by remember {
             ProfileRepository.state
+        }.collectAsStateWithLifecycle()
+        val liveTvUiState by remember {
+            LiveTvRepository.ensureLoaded()
+            LiveTvRepository.uiState
         }.collectAsStateWithLifecycle()
 
         LaunchedEffect(homescreenCatalogRefreshKey) {
@@ -442,6 +448,7 @@ fun SettingsScreen(
                         onCheckForUpdatesClick = onCheckForUpdatesClick,
                         onTestUpdateBannerClick = onTestUpdateBannerClick,
                         onCollectionsClick = onCollectionsClick,
+                        liveTvUiState = liveTvUiState,
                     )
                 } else {
                     MobileSettingsScreen(
@@ -516,6 +523,7 @@ fun SettingsScreen(
                         onCheckForUpdatesClick = onCheckForUpdatesClick,
                         onTestUpdateBannerClick = onTestUpdateBannerClick,
                         onCollectionsClick = onCollectionsClick,
+                        liveTvUiState = liveTvUiState,
                     )
                 }
             }
@@ -596,6 +604,7 @@ private fun MobileSettingsScreen(
     onCheckForUpdatesClick: (() -> Unit)? = null,
     onTestUpdateBannerClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
+    liveTvUiState: LiveTvUiState,
 ) {
     val saveableStateHolder = rememberSaveableStateHolder()
     saveableStateHolder.SaveableStateProvider(page.name) {
@@ -724,6 +733,7 @@ private fun MobileSettingsScreen(
                             onIntegrationsClick = { onPageChange(SettingsPage.Integrations) },
                             onTrackingClick = { onPageChange(SettingsPage.TraktAuthentication) },
                             onTorrServerClick = { onPageChange(SettingsPage.TorrServer) },
+                            onLiveTvClick = { onPageChange(SettingsPage.LiveTv) },
                             onSupportersContributorsClick = onSupportersContributorsClick,
                             onLicensesAttributionsClick = onLicensesAttributionsClick,
                             onCheckForUpdatesClick = onCheckForUpdatesClick,
@@ -857,6 +867,10 @@ private fun MobileSettingsScreen(
                 SettingsPage.Debrid -> debridSettingsContent(
                     isTablet = false,
                     settings = debridSettings,
+                )
+                SettingsPage.LiveTv -> liveTvSettingsContent(
+                    isTablet = false,
+                    uiState = liveTvUiState,
                 )
                 SettingsPage.TraktAuthentication -> trackingSettingsContent(
                     isTablet = false,
@@ -1010,6 +1024,7 @@ private fun TabletSettingsScreen(
     onCheckForUpdatesClick: (() -> Unit)? = null,
     onTestUpdateBannerClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
+    liveTvUiState: LiveTvUiState,
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.General.name) }
     val activeCategory = SettingsCategory.valueOf(selectedCategory)
@@ -1196,6 +1211,7 @@ private fun TabletSettingsScreen(
                                 onIntegrationsClick = { openInlinePage(SettingsPage.Integrations) },
                                 onTrackingClick = { openInlinePage(SettingsPage.TraktAuthentication) },
                                 onTorrServerClick = { openInlinePage(SettingsPage.TorrServer) },
+                                onLiveTvClick = { openInlinePage(SettingsPage.LiveTv) },
                                 onSupportersContributorsClick = { openInlinePage(SettingsPage.SupportersContributors) },
                                 onLicensesAttributionsClick = { openInlinePage(SettingsPage.LicensesAttributions) },
                                 onCheckForUpdatesClick = onCheckForUpdatesClick,
@@ -1333,6 +1349,10 @@ private fun TabletSettingsScreen(
                     SettingsPage.Debrid -> debridSettingsContent(
                         isTablet = true,
                         settings = debridSettings,
+                    )
+                    SettingsPage.LiveTv -> liveTvSettingsContent(
+                        isTablet = true,
+                        uiState = liveTvUiState,
                     )
                     SettingsPage.TraktAuthentication -> trackingSettingsContent(
                         isTablet = true,
