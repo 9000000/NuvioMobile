@@ -1242,6 +1242,7 @@ private fun LibmpvPlayerSurface(
                 keepScreenOn = false
                 runCatching {
                     Utils.copyAssets(viewContext)
+                    ensureBundledSubtitleFonts(viewContext)
                     initialize(viewContext.filesDir.path, viewContext.cacheDir.path)
                 }.onFailure { error ->
                     Log.e(TAG, "Failed to initialize libmpv", error)
@@ -1297,6 +1298,10 @@ private class NuvioLibmpvView(
         mpv.setOptionString("hwdec", if (hardwareDecodingEnabled) "auto" else "no")
         if (yuv420pEnabled) {
             mpv.setOptionString("vf", "format=yuv420p")
+        }
+        val fontsDir = java.io.File(context.filesDir, "fonts")
+        if (fontsDir.exists()) {
+            mpv.setOptionString("sub-fonts-dir", fontsDir.absolutePath)
         }
         mpv.setOptionString("msg-level", "all=warn")
         mpv.setOptionString("tls-verify", "yes")
@@ -1610,11 +1615,25 @@ private class NuvioLibmpvView(
                         "Sans-Serif" -> mpv.setPropertyString("sub-font", "sans-serif")
                         "Serif" -> mpv.setPropertyString("sub-font", "serif")
                         "Monospace" -> mpv.setPropertyString("sub-font", "monospace")
-                        "PhimMoi" -> mpv.setPropertyString("sub-font", "UVN Hong Ha Hep, PhimMoi")
+                        "PhimMoi" -> {
+                            val fontFile = java.io.File(context.filesDir, "fonts/Phimmoi.TTF")
+                            if (fontFile.exists() && fontFile.canRead()) {
+                                mpv.setPropertyString("sub-font", fontFile.absolutePath)
+                            } else {
+                                mpv.setPropertyString("sub-font", "UVN Hong Ha Hep, PhimMoi")
+                            }
+                        }
                         "Inter" -> mpv.setPropertyString("sub-font", "Inter")
                         "Open Sans" -> mpv.setPropertyString("sub-font", "Open Sans")
                         "DM Sans" -> mpv.setPropertyString("sub-font", "DM Sans")
-                        "Oswald" -> mpv.setPropertyString("sub-font", "Oswald")
+                        "Oswald" -> {
+                            val fontFile = java.io.File(context.filesDir, "fonts/Oswald.ttf")
+                            if (fontFile.exists() && fontFile.canRead()) {
+                                mpv.setPropertyString("sub-font", fontFile.absolutePath)
+                            } else {
+                                mpv.setPropertyString("sub-font", "Oswald")
+                            }
+                        }
                         else -> mpv.setPropertyString("sub-font", "")
                     }
                 }
@@ -1966,7 +1985,8 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: F
         setApplyEmbeddedStyles(false)
         setApplyEmbeddedFontSizes(false)
         setBottomPaddingFraction(bottomPaddingFraction)
-        val typeface = resolveSubtitleTypeface(style.fontName, style.customFontPath, style.bold)
+        ensureBundledSubtitleFonts(context)
+        val typeface = resolveSubtitleTypeface(context, style.fontName, style.customFontPath, style.bold)
         setStyle(
             CaptionStyleCompat(
                 style.textColor.toArgb(),
@@ -2431,7 +2451,25 @@ internal class SubtitleRequestHeaderDataSource(
     }
 }
 
-private fun resolveSubtitleTypeface(fontName: String, customFontPath: String?, bold: Boolean): Typeface {
+internal fun ensureBundledSubtitleFonts(context: Context) {
+    runCatching {
+        val fontsDir = java.io.File(context.filesDir, "fonts").apply { mkdirs() }
+        listOf("Phimmoi.TTF", "Oswald.ttf").forEach { fontName ->
+            val destFile = java.io.File(fontsDir, fontName)
+            if (!destFile.exists() || destFile.length() == 0L) {
+                context.assets.open("fonts/$fontName").use { input ->
+                    destFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+        }
+    }.onFailure { e ->
+        Log.w(TAG, "Failed to copy bundled subtitle fonts", e)
+    }
+}
+
+private fun resolveSubtitleTypeface(context: Context, fontName: String, customFontPath: String?, bold: Boolean): Typeface {
     return try {
         if (fontName == "Custom" && !customFontPath.isNullOrBlank()) {
             val file = java.io.File(customFontPath)
@@ -2445,11 +2483,33 @@ private fun resolveSubtitleTypeface(fontName: String, customFontPath: String?, b
                 "Sans-Serif" -> Typeface.create(Typeface.SANS_SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
                 "Serif" -> Typeface.create(Typeface.SERIF, if (bold) Typeface.BOLD else Typeface.NORMAL)
                 "Monospace" -> Typeface.create(Typeface.MONOSPACE, if (bold) Typeface.BOLD else Typeface.NORMAL)
-                "PhimMoi" -> Typeface.create("UVN Hong Ha Hep", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "PhimMoi" -> {
+                    val fontFile = java.io.File(context.filesDir, "fonts/Phimmoi.TTF")
+                    if (fontFile.exists() && fontFile.canRead()) {
+                        Typeface.createFromFile(fontFile)
+                    } else {
+                        try {
+                            Typeface.createFromAsset(context.assets, "fonts/Phimmoi.TTF")
+                        } catch (_: Throwable) {
+                            Typeface.create("UVN Hong Ha Hep", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                        }
+                    }
+                }
                 "Inter" -> Typeface.create("Inter", if (bold) Typeface.BOLD else Typeface.NORMAL)
                 "Open Sans" -> Typeface.create("Open Sans", if (bold) Typeface.BOLD else Typeface.NORMAL)
                 "DM Sans" -> Typeface.create("DM Sans", if (bold) Typeface.BOLD else Typeface.NORMAL)
-                "Oswald" -> Typeface.create("Oswald", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "Oswald" -> {
+                    val fontFile = java.io.File(context.filesDir, "fonts/Oswald.ttf")
+                    if (fontFile.exists() && fontFile.canRead()) {
+                        Typeface.createFromFile(fontFile)
+                    } else {
+                        try {
+                            Typeface.createFromAsset(context.assets, "fonts/Oswald.ttf")
+                        } catch (_: Throwable) {
+                            Typeface.create("Oswald", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                        }
+                    }
+                }
                 else -> if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             }
         }

@@ -2,11 +2,27 @@ package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import com.nuvio.app.isIos
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_track_number
+import nuvio.composeapp.generated.resources.oswald
+import nuvio.composeapp.generated.resources.phimmoi
+import org.jetbrains.compose.resources.Font
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
+
+@Composable
+fun subtitleFontFamily(fontName: String): FontFamily? {
+    return when (fontName) {
+        "PhimMoi" -> FontFamily(Font(Res.font.phimmoi))
+        "Oswald" -> FontFamily(Font(Res.font.oswald))
+        "Sans-Serif" -> FontFamily.SansSerif
+        "Serif" -> FontFamily.Serif
+        "Monospace" -> FontFamily.Monospace
+        else -> null
+    }
+}
 
 data class AudioTrack(
     val index: Int,

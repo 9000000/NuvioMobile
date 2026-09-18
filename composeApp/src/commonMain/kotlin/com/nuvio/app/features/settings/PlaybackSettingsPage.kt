@@ -76,6 +76,7 @@ import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.formatPlaybackSpeedLabel
 import com.nuvio.app.features.player.languageLabelForCode
 import com.nuvio.app.features.player.rememberFontPickerLauncher
+import com.nuvio.app.features.player.subtitleFontFamily
 import com.nuvio.app.features.player.subtitleFontSizeRangeSp
 import com.nuvio.app.features.player.toStorageHexString
 import com.nuvio.app.features.p2p.P2pCacheClearResult
@@ -2849,7 +2850,9 @@ private fun SubtitleFontDialog(
                             ) {
                                 Text(
                                     text = option.label,
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontFamily = if (!option.isAction) subtitleFontFamily(option.value) else null,
+                                    ),
                                     color = if (option.isAction) {
                                         MaterialTheme.colorScheme.primary
                                     } else {

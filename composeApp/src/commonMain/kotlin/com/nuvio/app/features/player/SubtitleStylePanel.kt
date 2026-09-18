@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -143,6 +144,7 @@ fun SubtitleStylePanel(
                     SubtitleFontChip(
                         label = label,
                         selected = isSelected,
+                        fontFamily = subtitleFontFamily(key),
                         onClick = { onStyleChanged(style.copy(fontName = key)) },
                     )
                 }
@@ -571,6 +573,7 @@ private fun SubtitleFontChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    fontFamily: FontFamily? = null,
     isAction: Boolean = false,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -595,7 +598,9 @@ private fun SubtitleFontChip(
         Text(
             text = label,
             color = textColor,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontFamily = fontFamily ?: MaterialTheme.typography.labelMedium.fontFamily,
+            ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

@@ -2,6 +2,7 @@ package com.nuvio.app.core.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -118,9 +119,10 @@ fun NuvioNavigationBar(
     compactSize: Boolean = false,
     content: @Composable NuvioNavigationBarScope.() -> Unit,
 ) {
+    val isLowEnd = LocalLowEndPerformanceMode.current
     val labelFraction by animateFloatAsState(
         targetValue = scrollState?.labelVisibility ?: 1f,
-        animationSpec = tween(
+        animationSpec = if (isLowEnd) snap() else tween(
             durationMillis = NuvioTokens.Motion.sheetEnterMillis,
             easing = NuvioTokens.Motion.standard,
         ),
@@ -226,14 +228,17 @@ private class NuvioNavigationBarScopeImpl(
     ) {
         val tokens = MaterialTheme.nuvio
         val palette = MaterialTheme.themePalette
+        val isLowEnd = LocalLowEndPerformanceMode.current
         val iconColor by animateColorAsState(
             targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            animationSpec = if (isLowEnd) snap() else tween(150),
             label = "nav_icon_color",
         )
         // Selected item gets a pill-shaped highlight using accent at low opacity
         val selectedBgColor by animateColorAsState(
             targetValue = if (selected) tokens.colors.accent.copy(alpha = NuvioTokens.Opacity.selected)
             else Color.Transparent,
+            animationSpec = if (isLowEnd) snap() else tween(150),
             label = "nav_bg_color",
         )
 
@@ -276,13 +281,16 @@ private class NuvioNavigationBarScopeImpl(
     ) {
         val tokens = MaterialTheme.nuvio
         val palette = MaterialTheme.themePalette
+        val isLowEnd = LocalLowEndPerformanceMode.current
         val iconColor by animateColorAsState(
             targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            animationSpec = if (isLowEnd) snap() else tween(150),
             label = "nav_icon_color",
         )
         val selectedBgColor by animateColorAsState(
             targetValue = if (selected) tokens.colors.accent.copy(alpha = NuvioTokens.Opacity.selected)
             else Color.Transparent,
+            animationSpec = if (isLowEnd) snap() else tween(150),
             label = "nav_bg_color",
         )
 
@@ -323,13 +331,16 @@ private class NuvioNavigationBarScopeImpl(
         content: @Composable () -> Unit,
     ) {
         val tokens = MaterialTheme.nuvio
+        val isLowEnd = LocalLowEndPerformanceMode.current
         val selectedBgColor by animateColorAsState(
             targetValue = if (selected) tokens.colors.accent.copy(alpha = NuvioTokens.Opacity.selected)
             else Color.Transparent,
+            animationSpec = if (isLowEnd) snap() else tween(150),
             label = "nav_bg_color",
         )
         val iconColor by animateColorAsState(
             targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            animationSpec = if (isLowEnd) snap() else tween(150),
             label = "nav_icon_color",
         )
 
@@ -431,8 +442,10 @@ private class NuvioClassicNavigationBarScopeImpl(
     ) {
         val tokens = MaterialTheme.nuvio
         val palette = MaterialTheme.themePalette
+        val isLowEnd = LocalLowEndPerformanceMode.current
         val iconColor by animateColorAsState(
             targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            animationSpec = if (isLowEnd) snap() else tween(150),
             label = "classic_nav_icon_color",
         )
         with(rowScope) {
@@ -469,8 +482,10 @@ private class NuvioClassicNavigationBarScopeImpl(
     ) {
         val tokens = MaterialTheme.nuvio
         val palette = MaterialTheme.themePalette
+        val isLowEnd = LocalLowEndPerformanceMode.current
         val iconColor by animateColorAsState(
             targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            animationSpec = if (isLowEnd) snap() else tween(150),
             label = "classic_nav_icon_color",
         )
         with(rowScope) {
