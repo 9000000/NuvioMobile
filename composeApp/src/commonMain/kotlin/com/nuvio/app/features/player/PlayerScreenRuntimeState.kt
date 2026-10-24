@@ -23,6 +23,26 @@ import com.nuvio.app.features.watchprogress.WatchProgressUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 
+/**
+ * Audio/subtitle selection captured right before the playback engine changes, together with the
+ * engine that is expected to take over.
+ *
+ * The captured selection is re-applied as soon as the new engine exposes its track list, so the
+ * user keeps the audio and subtitle tracks they had chosen. Mirrors NuvioTV's
+ * `PendingEngineSwitchTrackPreference` / `rememberCurrentTrackPreferenceForEngineSwitch` /
+ * `clearPendingEngineSwitchTrackPreference` trio.
+ */
+internal data class PendingEngineSwitchTrackPreference(
+    val sourceIdentity: String,
+    val capturedController: PlayerEngineController?,
+    val targetEngine: AndroidPlaybackEngine,
+    val preference: PersistedPlayerTrackPreference,
+    val hasAudioSelection: Boolean,
+    val hasSubtitleSelection: Boolean,
+    val audioApplied: Boolean = false,
+    val subtitleApplied: Boolean = false,
+)
+
 internal class PlayerScreenRuntime(
     args: PlayerScreenArgs,
 ) {
@@ -202,6 +222,7 @@ internal class PlayerScreenRuntime(
     var playbackEngineOverride by mutableStateOf<AndroidPlaybackEngine?>(null)
     var engineFailoverTriggered by mutableStateOf(false)
     var engineFailoverDisarmed by mutableStateOf(false)
+    var pendingEngineSwitchTrackPreference by mutableStateOf<PendingEngineSwitchTrackPreference?>(null)
     var audioTracks by mutableStateOf<List<AudioTrack>>(emptyList())
     var subtitleTracks by mutableStateOf<List<SubtitleTrack>>(emptyList())
     var selectedAudioIndex by mutableStateOf(-1)

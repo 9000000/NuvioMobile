@@ -422,6 +422,9 @@ internal fun PlayerScreenRuntime.switchPlaybackEngine() {
         activeInitialPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
         activeInitialProgressFraction = null
     }
+    // Capture the current audio/subtitle selection before the engine changes, so it can be
+    // restored on the new engine once its tracks are available.
+    rememberCurrentTrackPreferenceForEngineSwitch(target)
     playbackEngineOverride = target
     // A manual switch is an explicit user decision: never let the automatic engine
     // failover drag the user back to the engine they just switched away from.
@@ -467,6 +470,9 @@ internal fun PlayerScreenRuntime.maybeFailoverPlaybackEngine(
         activeInitialPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
         activeInitialProgressFraction = null
     }
+    // Capture the current audio/subtitle selection before the engine changes, so it can be
+    // restored on the new engine once its tracks are available.
+    rememberCurrentTrackPreferenceForEngineSwitch(target)
     playbackEngineOverride = target
     showGestureFeedback(
         GestureFeedbackState(

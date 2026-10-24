@@ -88,6 +88,10 @@ internal fun PlayerScreenRuntime.persistAddonSubtitlePreference(subtitle: AddonS
 
 internal fun PlayerScreenRuntime.restorePersistedTrackPreferenceIfNeeded(): Boolean {
     if (trackPreferenceRestoreApplied) return true
+    // A pending engine switch carry-over describes the selection that is playing right now, so
+    // it takes precedence over the stored preference, the same way NuvioTV prefers the switch
+    // preference over the persisted one.
+    if (pendingEngineSwitchTrackPreference?.sourceIdentity == activePlaybackIdentity) return true
     val preference = PlayerTrackPreferenceStorage.load(parentMetaId)
     if (preference == null) {
         trackPreferenceRestoreApplied = true
@@ -180,6 +184,10 @@ internal fun PlayerScreenRuntime.refreshTracks() {
     if (subtitlePreferenceReady && (preferredAudioSelectionApplied || audioTracks.isEmpty())) {
         tryAutoSelectPreferredSubtitleFromAvailableTracks(preferredAudioTargets)
     }
+
+    // The engine may have just switched: restore the audio/subtitle selection that was captured
+    // before the switch, overriding the default language preferences.
+    applyPendingEngineSwitchTrackPreference()
 }
 
 private fun PlayerScreenRuntime.tryAutoSelectPreferredSubtitleFromAvailableTracks(
