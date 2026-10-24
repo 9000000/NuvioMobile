@@ -2207,6 +2207,13 @@ private fun PlaybackEngineDialog(
     onEngineSelected: (AndroidPlaybackEngine) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    // Auto is listed last: it is a policy overlay on the two concrete engines, and ExoPlayer is
+    // the default engine.
+    val engineOrder = listOf(
+        AndroidPlaybackEngine.ExoPlayer,
+        AndroidPlaybackEngine.Libmpv,
+        AndroidPlaybackEngine.Auto,
+    )
     val descriptions = mapOf(
         AndroidPlaybackEngine.Auto to Res.string.settings_playback_engine_auto_description,
         AndroidPlaybackEngine.ExoPlayer to Res.string.settings_playback_engine_exoplayer_description,
@@ -2221,7 +2228,7 @@ private fun PlaybackEngineDialog(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            AndroidPlaybackEngine.entries.forEach { engine ->
+            engineOrder.forEach { engine ->
                 val isSelected = engine == selectedEngine
                 DialogOption(
                     text = engine.label,

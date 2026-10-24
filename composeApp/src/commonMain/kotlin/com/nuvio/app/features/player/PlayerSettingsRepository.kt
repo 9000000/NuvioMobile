@@ -53,7 +53,7 @@ data class PlayerSettingsUiState(
     val subtitleStyle: SubtitleStyleState = SubtitleStyleState.DEFAULT,
     val streamReuseLastLinkEnabled: Boolean = false,
     val streamReuseLastLinkCacheHours: Int = 24,
-    val androidPlaybackEngine: AndroidPlaybackEngine = AndroidPlaybackEngine.Auto,
+    val androidPlaybackEngine: AndroidPlaybackEngine = AndroidPlaybackEngine.ExoPlayer,
     val autoSwitchPlaybackEngineOnError: Boolean = true,
     val androidLibmpvVideoOutput: AndroidLibmpvVideoOutput = AndroidLibmpvVideoOutput.GpuNext,
     val androidLibmpvHardwareDecodingEnabled: Boolean = true,
@@ -137,7 +137,7 @@ object PlayerSettingsRepository {
     private var subtitleStyle = SubtitleStyleState.DEFAULT
     private var streamReuseLastLinkEnabled = false
     private var streamReuseLastLinkCacheHours = 24
-    private var androidPlaybackEngine = AndroidPlaybackEngine.Auto
+    private var androidPlaybackEngine = AndroidPlaybackEngine.ExoPlayer
     private var autoSwitchPlaybackEngineOnError = true
     private var androidLibmpvVideoOutput = AndroidLibmpvVideoOutput.GpuNext
     private var androidLibmpvHardwareDecodingEnabled = true
@@ -226,7 +226,7 @@ object PlayerSettingsRepository {
         subtitleStyle = SubtitleStyleState.DEFAULT
         streamReuseLastLinkEnabled = false
         streamReuseLastLinkCacheHours = 24
-        androidPlaybackEngine = AndroidPlaybackEngine.Auto
+        androidPlaybackEngine = AndroidPlaybackEngine.ExoPlayer
         autoSwitchPlaybackEngineOnError = true
         androidLibmpvVideoOutput = AndroidLibmpvVideoOutput.GpuNext
         androidLibmpvHardwareDecodingEnabled = true
@@ -343,7 +343,9 @@ object PlayerSettingsRepository {
         streamReuseLastLinkCacheHours = PlayerSettingsStorage.loadStreamReuseLastLinkCacheHours() ?: 24
         androidPlaybackEngine = PlayerSettingsStorage.loadAndroidPlaybackEngine()
             ?.let { runCatching { AndroidPlaybackEngine.valueOf(it) }.getOrNull() }
-            ?: AndroidPlaybackEngine.Auto
+            // ExoPlayer is the default engine; Auto is an opt-in policy that resolves the
+            // engine per source (HDR/DV to ExoPlayer, anime to libmpv).
+            ?: AndroidPlaybackEngine.ExoPlayer
         autoSwitchPlaybackEngineOnError = PlayerSettingsStorage.loadAutoSwitchPlaybackEngineOnError() ?: true
         androidLibmpvVideoOutput = PlayerSettingsStorage.loadAndroidLibmpvVideoOutput()
             ?.let { runCatching { AndroidLibmpvVideoOutput.valueOf(it) }.getOrNull() }
