@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -39,8 +40,10 @@ import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.accentBrush
 import com.nuvio.app.core.ui.themePalette
 import com.nuvio.app.core.ui.nuvioTypeScale
+import com.nuvio.app.features.streams.StreamBadge
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 
 internal val PlayerTimelineContentInset = 2.dp
 
@@ -51,10 +54,8 @@ internal fun PlayerTimelineDetails(
     episodeNumber: Int?,
     episodeTitle: String?,
     releaseInfo: String?,
-    streamTitle: String,
-    providerName: String,
-    isPlaying: Boolean,
     metrics: PlayerLayoutMetrics,
+    badges: List<StreamBadge> = emptyList(),
 ) {
     val typeScale = MaterialTheme.nuvioTypeScale
     Column(Modifier.padding(horizontal = PlayerTimelineContentInset)) {
@@ -71,27 +72,21 @@ internal fun PlayerTimelineDetails(
         )
         if (seasonNumber != null && episodeNumber != null) {
             val episodeCode = stringResource(Res.string.compose_player_episode_code_full, seasonNumber, episodeNumber)
+            val displayEpisodeTitle = localizedEpisodeTitle(episodeTitle, episodeNumber)
             Text(
-                text = if (episodeTitle.isNullOrBlank()) episodeCode else "$episodeCode • $episodeTitle",
+                text = if (displayEpisodeTitle.isNullOrBlank()) episodeCode else "$episodeCode • $displayEpisodeTitle",
                 style = typeScale.bodyMd.copy(fontSize = metrics.episodeInfoSize),
                 color = Color.White.copy(alpha = 0.9f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        if (badges.isNotEmpty()) {
+            PlayerBadges(badges = badges, modifier = Modifier.padding(vertical = 4.dp))
+        }
         if (!releaseInfo.isNullOrBlank()) {
             Text(
                 text = releaseInfo,
-                style = typeScale.labelSm.copy(fontSize = metrics.metadataSize),
-                color = Color.White.copy(alpha = 0.68f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        val source = streamTitle.ifBlank { providerName }.replace("\n", " · ")
-        if (!isPlaying && source.isNotBlank()) {
-            Text(
-                text = stringResource(Res.string.compose_player_via, source),
                 style = typeScale.labelSm.copy(fontSize = metrics.metadataSize),
                 color = Color.White.copy(alpha = 0.68f),
                 maxLines = 1,
@@ -128,9 +123,12 @@ internal fun PlayerTimeline(
         label = "playerTimelineThickness",
     )
 
+    val sliderState = remember(rangeEnd) { SliderState(trackRange = 0f..rangeEnd) }
+    sliderState.value = displayedPositionMs.coerceIn(0L, durationMs).toFloat()
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Slider(
-            value = displayedPositionMs.coerceIn(0L, durationMs).toFloat(),
+            state = sliderState,
             onValueChange = { value ->
                 val position = value.toLong().coerceIn(0L, durationMs)
                 scrubPosition = position
@@ -140,7 +138,6 @@ internal fun PlayerTimeline(
                 onScrubFinished((scrubPosition ?: displayedPositionMs).coerceIn(0L, durationMs))
                 scrubPosition = null
             },
-            valueRange = 0f..rangeEnd,
             enabled = enabled && durationMs > 0L,
             interactionSource = interactionSource,
             thumb = {},

@@ -2,6 +2,7 @@ package com.nuvio.app.features.player
 
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.NuvioToastController
+import com.nuvio.app.features.party.PartyRepository
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.shuffle.EpisodeShuffleRepository
 import com.nuvio.app.features.shuffle.ShuffleSurface
@@ -25,6 +26,8 @@ import com.nuvio.app.features.player.skip.SkipIntroRepository
 import com.nuvio.app.features.player.skip.shouldAutoSkip
 import com.nuvio.app.features.player.skip.internalSkipAction
 import com.nuvio.app.features.player.skip.intervalsAtSeekPositions
+import com.nuvio.app.features.servers.ServerPlayback
+import com.nuvio.app.features.servers.ServerStreams
 import com.nuvio.app.features.streams.BingeGroupCacheRepository
 import com.nuvio.app.features.streams.StreamLinkCacheRepository
 import com.nuvio.app.features.streams.StreamItem
@@ -67,10 +70,10 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         }
     }
 
-    LaunchedEffect(currentStreamBingeGroup, parentMetaId) {
+    LaunchedEffect(currentStreamBingeGroup, currentStreamFilename, currentStreamInfoHash, parentMetaId) {
         val bg = currentStreamBingeGroup
         if (bg != null && parentMetaId.isNotBlank()) {
-            BingeGroupCacheRepository.save(parentMetaId, bg)
+            BingeGroupCacheRepository.save(parentMetaId, bg, currentStreamFilename, currentStreamInfoHash)
         }
     }
 
@@ -272,6 +275,11 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         }
     }
 
+    LaunchedEffect(activeSourceUrl, preferredAudioLanguageTargets) {
+        refreshServerTracks()
+        applyPreferredServerAudioTrack()
+    }
+
     LaunchedEffect(playbackSnapshot.isLoading, playerController, preferredAudioLanguageTargets) {
         if (!playbackSnapshot.isLoading && playerController != null) {
             refreshTracks()
@@ -335,6 +343,10 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         val controller = playerController ?: return@LaunchedEffect
         if (playerControllerSourceUrl != activeSourceUrl) return@LaunchedEffect
         if (initialSeekApplied || playbackSnapshot.isLoading) return@LaunchedEffect
+        if (isPartySynced && PartyRepository.playback.value != null) {
+            initialSeekApplied = true
+            return@LaunchedEffect
+        }
 
         val progressFraction = activeInitialProgressFraction
             ?.takeIf { it > 0f }
@@ -358,6 +370,12 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
 
     BindPlayerUiVisibilityEffects()
     BindPlayerMetadataAndSkipEffects()
+    BindPartyEffects()
+
+    DisposableEffect(activeSourceUrl) {
+        val effectSourceUrl = activeSourceUrl
+        onDispose { ServerPlayback.stop(effectSourceUrl) }
+    }
 
     DisposableEffect(playbackSession.videoId, activeSourceUrl, activeSourceAudioUrl) {
         val effectVideoId = playbackSession.videoId
@@ -439,6 +457,13 @@ private fun PlayerScreenRuntime.BindPlayerUiVisibilityEffects() {
         playbackSnapshot.isEnded,
         playbackSnapshot.durationMs,
     ) {
+        ServerPlayback.onPlaybackSnapshot(
+            url = activeSourceUrl,
+            positionMs = playbackSnapshot.positionMs,
+            isPlaying = playbackSnapshot.isPlaying,
+            isLoading = playbackSnapshot.isLoading,
+            isEnded = playbackSnapshot.isEnded,
+        )
         if (playbackSnapshot.isEnded) {
             flushWatchProgress(TrackingScrobbleAction.STOP)
             previousIsPlaying = false
@@ -578,7 +603,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         if (current != null && controller != null &&
             playerControllerSourceUrl == activeSourceUrl &&
             playerSettingsUiState.skipIntroEnabled && playbackSnapshot.isPlaying &&
-            !isScrubbingTimeline && initialSeekApplied &&
+            !isScrubbingTimeline && initialSeekApplied && !isPartyControlLocked &&
             current.shouldAutoSkip(playerSettingsUiState.autoSkipSegmentTypes) &&
             current !in autoSkippedIntervals
         ) {
@@ -589,6 +614,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
             autoSkippedIntervals.add(current)
             controller.seekTo(seekPositionMs)
             scheduleProgressSyncAfterSeek()
+            publishPartyPlayback(positionMs = seekPositionMs)
             skipIntervalDismissed = true
             notification?.let { NuvioToastController.show(it, AUTO_SKIP_NOTIFICATION_DURATION_MS) }
         }
@@ -694,7 +720,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         }
         if (shouldShow && !showNextEpisodeCard) {
             showNextEpisodeCard = true
-            if (playerSettingsUiState.streamAutoPlayNextEpisodeEnabled && nextEpisodeInfo?.hasAired == true) {
+            if (playerSettingsUiState.streamAutoPlayNextEpisodeEnabled && nextEpisodeInfo?.hasAired == true && !isPartyControlLocked) {
                 playNextEpisode(automatic = true)
             }
         } else if (!shouldShow) {
@@ -753,6 +779,7 @@ internal fun PlayerScreenRuntime.removeFailedStreamFromCache() {
 }
 
 internal fun PlayerScreenRuntime.tryRefreshCredentialedSourceAfterError(message: String?): Boolean {
+    if (ServerStreams.isServerSourceId(activeProviderAddonId)) return retryServerSourceAfterError(message)
     val failedUrl = activeSourceUrl
     if (!failedUrl.hasLikelyExpiringPlaybackCredentials()) return false
     if (credentialRefreshJob?.isActive == true) return true
@@ -833,7 +860,10 @@ internal fun PlayerScreenRuntime.tryRefreshCredentialedSourceAfterError(message:
             activeStreamFilename = streamPlaybackFilename(stream, refreshedUrl)
             activeProviderName = stream.addonName
             activeProviderAddonId = stream.addonId
+            activeStream = stream
             currentStreamBingeGroup = stream.behaviorHints.bingeGroup
+            currentStreamFilename = stream.behaviorHints.filename
+            currentStreamInfoHash = stream.infoHash
             activeInitialPositionMs = savedPositionMs
             activeInitialProgressFraction = null
             showSourcesPanel = false
@@ -841,6 +871,29 @@ internal fun PlayerScreenRuntime.tryRefreshCredentialedSourceAfterError(message:
         } finally {
             PlayerStreamsRepository.stopSourcesLoading()
         }
+    }
+    return true
+}
+
+private fun PlayerScreenRuntime.retryServerSourceAfterError(message: String?): Boolean {
+    if (credentialRefreshJob?.isActive == true) return true
+    val failedUrl = activeSourceUrl
+    if (credentialRefreshAttemptedSourceUrl == failedUrl) return false
+    credentialRefreshAttemptedSourceUrl = failedUrl
+    val savedPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
+    errorMessage = null
+    credentialRefreshJob = scope.launch {
+        val playback = ServerPlayback.fallback(failedUrl)
+        if (playback == null) {
+            errorMessage = message
+            controlsVisible = !playerControlsLocked
+            return@launch
+        }
+        externalSubtitles = playback.subtitles
+        activeSourceUrl = playback.url
+        activeSourceHeaders = playback.headers
+        activeInitialPositionMs = savedPositionMs
+        activeInitialProgressFraction = null
     }
     return true
 }

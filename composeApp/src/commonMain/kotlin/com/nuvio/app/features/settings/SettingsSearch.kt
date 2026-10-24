@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.CollectionsBookmark
+import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Hub
@@ -459,6 +460,13 @@ internal fun settingsSearchEntries(
         ),
         icon = Icons.Rounded.Extension,
     )
+    addPage(
+        page = SettingsPage.MediaServers,
+        key = "media-servers",
+        title = stringResource(Res.string.compose_settings_page_media_servers),
+        description = stringResource(Res.string.settings_content_discovery_media_servers_description),
+        icon = Icons.Rounded.Dns,
+    )
     if (pluginsEnabled) {
         addPage(
             page = SettingsPage.Plugins,
@@ -886,6 +894,7 @@ internal fun settingsSearchEntries(
 
     listOf(
         PlaybackSearchRow("mdb-enable", stringResource(Res.string.settings_mdb_enable_ratings), stringResource(Res.string.settings_mdb_enable_ratings_description), stringResource(Res.string.settings_mdb_section_title)),
+        PlaybackSearchRow("mdb-show-on-hero", stringResource(Res.string.settings_mdb_show_on_hero), stringResource(Res.string.settings_mdb_show_on_hero_description), stringResource(Res.string.settings_mdb_section_title)),
         PlaybackSearchRow("mdb-api-key", stringResource(Res.string.settings_mdb_api_key_title), stringResource(Res.string.settings_mdb_api_key_description), stringResource(Res.string.settings_mdb_section_api_key)),
         PlaybackSearchRow("mdb-imdb", stringResource(Res.string.source_imdb), "", stringResource(Res.string.settings_mdb_section_rating_providers)),
         PlaybackSearchRow("mdb-tmdb", stringResource(Res.string.source_tmdb), "", stringResource(Res.string.settings_mdb_section_rating_providers)),
