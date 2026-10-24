@@ -157,6 +157,20 @@ class AutoPlaybackEngineResolverTest {
         assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = emptyList()))
     }
 
+    // --- direct-stream filename -------------------------------------------------------------
+
+    @Test
+    fun urlBasenameIsUsedAsFilenameOnlyWhenItLooksLikeAFile() {
+        // Mirrors NuvioTV's URL-basename fallback for streams without behaviorHints.filename.
+        assertEquals(
+            "Movie.2024.HDR10.mkv",
+            sourceFilenameFromUrl("https://example.com/dl/Movie.2024.HDR10.mkv?token=abc"),
+        )
+        assertNull(sourceFilenameFromUrl("https://example.com/dl/segment"))
+        assertNull(sourceFilenameFromUrl("https://example.com/"))
+        assertNull(sourceFilenameFromUrl(null))
+    }
+
     // --- animation + country ---------------------------------------------------------------
 
     @Test
@@ -186,8 +200,7 @@ class AutoPlaybackEngineResolverTest {
 
     @Test
     fun animationFromAnotherCountryDoesNotSelectLibmpv() {
-        // Regression: TMDB enrichment produces comma-joined ISO codes such as "US, GB".
-        assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = listOf("Animation"), country = "US, GB"))
+        // Regression: TMDB enrichment produces comma-joined ISO codes such as "US, GB".        assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = listOf("Animation"), country = "US, GB"))
         assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = listOf("Animation"), country = "United States"))
         assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = listOf("Animation"), country = "JPX"))
     }

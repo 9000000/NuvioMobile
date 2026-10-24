@@ -810,6 +810,7 @@ internal fun PlayerScreenRuntime.tryRefreshCredentialedSourceAfterError(message:
             activeStreamType = stream.streamType
             activeStreamTitle = stream.streamLabel
             activeStreamSubtitle = stream.streamSubtitle
+            activeStreamFilename = streamPlaybackFilename(stream, refreshedUrl)
             activeProviderName = stream.addonName
             activeProviderAddonId = stream.addonId
             currentStreamBingeGroup = stream.behaviorHints.bingeGroup

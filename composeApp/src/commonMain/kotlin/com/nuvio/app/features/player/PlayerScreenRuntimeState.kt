@@ -114,6 +114,10 @@ internal class PlayerScreenRuntime(
     )
     var activeStreamTitle by mutableStateOf(streamTitle)
     var activeStreamSubtitle by mutableStateOf(streamSubtitle)
+    // Filename from the stream's behaviorHints (or the URL basename), used by the auto engine
+    // resolver to detect HDR/Dolby Vision tags that only appear in the filename. Mirrors
+    // NuvioTV's `currentFilename`, which is set for direct and torrent streams alike.
+    var activeStreamFilename by mutableStateOf(sourceFilenameFromUrl(sourceUrl))
     var activeProviderName by mutableStateOf(providerName)
     var activeProviderAddonId by mutableStateOf(providerAddonId)
     var currentStreamBingeGroup by mutableStateOf(initialBingeGroup)

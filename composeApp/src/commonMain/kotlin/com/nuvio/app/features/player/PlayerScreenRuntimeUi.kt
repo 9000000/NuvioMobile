@@ -159,11 +159,17 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 // With the engine set to Auto, the concrete engine is resolved here, once per
                 // source, rather than inside the playback engine itself. HDR/Dolby Vision wins
                 // over anime; both are decided by the pure resolver so they can be unit tested.
-                val resolvedAutoEngine = remember(playbackKey, playerSettingsUiState.androidPlaybackEngine) {
-                    resolveAutoPlaybackEngine(
+                // Genres/country come from metadata that can load after first composition, so
+                // the resolution re-runs while the source is still loading; once playback has
+                // loaded the engine is frozen, because a late metadata update must never
+                // restart a playing stream.
+                val resolvedAutoEngineState =
+                    remember(playbackKey.copy(playbackEngine = null)) { mutableStateOf<AndroidPlaybackEngine?>(null) }
+                if (!initialLoadCompleted || resolvedAutoEngineState.value == null) {
+                    resolvedAutoEngineState.value = resolveAutoPlaybackEngine(
                         playbackEngineSetting = playerSettingsUiState.androidPlaybackEngine,
                         videoId = activeVideoId,
-                        streamFilename = activeTorrentFilename,
+                        streamFilename = activeTorrentFilename ?: activeStreamFilename,
                         streamName = activeStreamTitle,
                         streamDescription = activeStreamSubtitle,
                         contentTitle = title,
@@ -171,9 +177,13 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                         country = playerMeta?.country,
                     )
                 }
+                val resolvedAutoEngine = resolvedAutoEngineState.value
                 // Automatic engine failover and manual engine switches are scoped to one source:
                 // starting a source re-arms the failover and clears any previous engine choice.
-                LaunchedEffect(playbackKey) {
+                // The effect is keyed on the source, not on the full playbackKey: playbackKey
+                // includes the engine override, so an effect keyed on it would run right after
+                // the override changed the key and immediately undo the switch that set it.
+                LaunchedEffect(playbackKey.copy(playbackEngine = null)) {
                     engineFailoverTriggered = false
                     engineFailoverDisarmed = false
                     playbackEngineOverride = null
