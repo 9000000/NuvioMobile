@@ -12,21 +12,14 @@ private data class CapturedSubtitleSelection(
 )
 
 private enum class SubtitleCarryOverOutcome {
-    /** The new engine has not exposed the tracks yet; try again later. */
     Pending,
-
-    /** The carried-over selection was restored on the new engine. */
     Applied,
-
-    /** The new engine has no matching track; keep whatever the default selection is. */
     Skipped,
 }
 
 /**
- * Captures the currently selected audio/subtitle tracks before the playback engine switches.
- *
- * The capture is taken from the engine that is still running, so the selection survives the
- * switch even though the new engine reports its own track ids and its own track ordering.
+ * Captures the currently selected audio/subtitle tracks before the playback engine switches, so
+ * the selection can be restored on the new engine even though track ids and ordering differ.
  */
 internal fun PlayerScreenRuntime.rememberCurrentTrackPreferenceForEngineSwitch(
     targetEngine: AndroidPlaybackEngine,
@@ -59,9 +52,6 @@ internal fun PlayerScreenRuntime.rememberCurrentTrackPreferenceForEngineSwitch(
     )
 }
 
-/**
- * Drops a pending carry-over, mirroring NuvioTV's `clearPendingEngineSwitchTrackPreference`.
- */
 internal fun PlayerScreenRuntime.clearPendingEngineSwitchTrackPreference() {
     pendingEngineSwitchTrackPreference = null
 }
@@ -86,7 +76,7 @@ private fun PlayerScreenRuntime.captureCurrentSubtitleSelectionForEngineSwitch()
         )
     }
 
-    // Subtitles were explicitly turned off: the off-state is carried over as well.
+    // Subtitles were explicitly turned off: carry the off-state over as well.
     if (isUserExplicitSubtitleSelection && selectedSubtitleIndex < 0) {
         return CapturedSubtitleSelection(type = PersistedSubtitleSelectionType.DISABLED)
     }
@@ -107,26 +97,23 @@ private fun PlayerScreenRuntime.captureCurrentSubtitleSelectionForEngineSwitch()
 }
 
 /**
- * Re-applies the captured track selection on the engine that just took over.
- *
- * Called from [refreshTracks] so it runs as soon as the new engine exposes its track list. The
- * pending state is cleared once both the audio and the subtitle selection have been handled.
+ * Re-applies the captured track selection on the engine that just took over; called from
+ * [refreshTracks] as soon as the new engine exposes its track list.
  */
 internal fun PlayerScreenRuntime.applyPendingEngineSwitchTrackPreference() {
     val pending = pendingEngineSwitchTrackPreference ?: return
     if (pending.sourceIdentity != activePlaybackIdentity) {
-        // The source changed underneath the carry-over: it no longer applies.
         clearPendingEngineSwitchTrackPreference()
         return
     }
     val controller = playerController ?: return
     if (controller === pending.capturedController) {
-        // Still the engine the selection was captured on: the new one is not ready yet.
+        // The engine the selection was captured on is still attached; the new one is not ready.
         return
     }
     val engine = controller.playbackEngine
     if (engine != null && engine != pending.targetEngine) {
-        // Another engine took over in the meantime: the carry-over does not apply.
+        // Another engine took over: the carry-over does not apply.
         clearPendingEngineSwitchTrackPreference()
         return
     }
@@ -146,8 +133,7 @@ internal fun PlayerScreenRuntime.applyPendingEngineSwitchTrackPreference() {
                     updated = updated.copy(audioApplied = true)
                 }
                 audioTracks.isNotEmpty() -> {
-                    // The new engine exposes audio tracks, but none of them matches the
-                    // carried-over one: keep the default (language preference) selection.
+                    // No matching track on the new engine: keep the default selection.
                     updated = updated.copy(audioApplied = true)
                 }
             }
@@ -167,9 +153,8 @@ internal fun PlayerScreenRuntime.applyPendingEngineSwitchTrackPreference() {
     }
 
     if (updated.audioApplied && updated.subtitleApplied) {
-        // The carried-over selection is the effective one for this playback, so the stored
-        // preference must not be restored on top of it. This mirrors NuvioTV, where the switch
-        // preference wins over the persisted one.
+        // The carry-over is the effective selection, so the stored preference must not be
+        // restored on top of it (NuvioTV prefers the switch preference over the persisted one).
         trackPreferenceRestoreApplied = true
         pendingEngineSwitchTrackPreference = null
     } else {
@@ -232,11 +217,9 @@ private fun PlayerScreenRuntime.applyCarriedOverSubtitleSelection(
 }
 
 /**
- * Finds the audio track of the new engine that corresponds to the captured one.
- *
- * Track ids are engine specific (libmpv reports numeric ids, ExoPlayer reports format ids), so
- * the match is based on the label and the language, the same way the persisted preference is
- * restored.
+ * Finds the audio track of the new engine that corresponds to the captured one. Track ids are
+ * engine specific (libmpv numeric ids, ExoPlayer format ids), so the match is by label and
+ * language, like the persisted preference restore.
  */
 private fun findCarriedOverAudioTrack(
     tracks: List<AudioTrack>,
@@ -245,18 +228,15 @@ private fun findCarriedOverAudioTrack(
     val targetName = preference.audioName?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
     val targetLanguage = preference.audioLanguage?.trim()?.takeIf { it.isNotBlank() }
 
-    // The same label, in the same language, disambiguates tracks that share a language.
     if (targetName != null) {
         tracks.firstOrNull { track ->
             track.label.trim().lowercase() == targetName &&
                 (targetLanguage == null || audioTrackMatchesLanguage(track, targetLanguage))
         }?.let { return it }
     }
-    // The same label, even when the engines report the language differently.
     if (targetName != null) {
         tracks.firstOrNull { track -> track.label.trim().lowercase() == targetName }?.let { return it }
     }
-    // The same language, preferring the same regional variant.
     if (targetLanguage != null) {
         findPersistedAudioTrackIndex(tracks, preference.copy(audioTrackId = null))
             .takeIf { it >= 0 }
@@ -280,7 +260,6 @@ private fun findCarriedOverSubtitleTrack(
         .takeIf { it >= 0 }
         ?.let { index -> tracks.firstOrNull { it.index == index } }
         ?.let { return it }
-    // Retry without the forced-subtitle filter: the new engine may report it differently.
     findPersistedSubtitleTrackIndex(tracks, effectivePreference.copy(subtitleIsForced = null))
         .takeIf { it >= 0 }
         ?.let { index -> tracks.firstOrNull { it.index == index } }

@@ -26,12 +26,7 @@ import kotlin.time.TimeMark
 
 /**
  * Audio/subtitle selection captured right before the playback engine changes, together with the
- * engine that is expected to take over.
- *
- * The captured selection is re-applied as soon as the new engine exposes its track list, so the
- * user keeps the audio and subtitle tracks they had chosen. Mirrors NuvioTV's
- * `PendingEngineSwitchTrackPreference` / `rememberCurrentTrackPreferenceForEngineSwitch` /
- * `clearPendingEngineSwitchTrackPreference` trio.
+ * engine expected to take over. Re-applied as soon as the new engine exposes its track list.
  */
 internal data class PendingEngineSwitchTrackPreference(
     val sourceIdentity: String,
@@ -136,9 +131,7 @@ internal class PlayerScreenRuntime(
     )
     var activeStreamTitle by mutableStateOf(streamTitle)
     var activeStreamSubtitle by mutableStateOf(streamSubtitle)
-    // Filename from the stream's behaviorHints (or the URL basename), used by the auto engine
-    // resolver to detect HDR/Dolby Vision tags that only appear in the filename. Mirrors
-    // NuvioTV's `currentFilename`, which is set for direct and torrent streams alike.
+    // behaviorHints filename (or URL basename) for the auto engine resolver's HDR/DV detection.
     var activeStreamFilename by mutableStateOf(sourceFilenameFromUrl(sourceUrl))
     var activeProviderName by mutableStateOf(providerName)
     var activeProviderAddonId by mutableStateOf(providerAddonId)

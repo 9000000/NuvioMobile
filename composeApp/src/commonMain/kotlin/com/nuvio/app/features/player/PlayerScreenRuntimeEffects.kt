@@ -311,9 +311,8 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         }
     }
 
-    // A pending engine switch carry-over is re-applied as soon as the new engine exposes its
-    // tracks. The tracks can show up a bit later than the controller itself, so keep polling
-    // for a short while before giving up on the carry-over.
+    // A pending carry-over is re-applied as soon as the new engine exposes its tracks; poll
+    // briefly, then give up.
     LaunchedEffect(playerController, pendingEngineSwitchTrackPreference != null) {
         if (playerController == null) return@LaunchedEffect
         if (pendingEngineSwitchTrackPreference == null) return@LaunchedEffect
@@ -328,8 +327,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         if (playerController?.playbackEngine == pending.targetEngine) {
             // The new engine never exposed a matching track: drop the carry-over.
             clearPendingEngineSwitchTrackPreference()
-        }
-    }
+        }    }
 
     LaunchedEffect(
         playerController,

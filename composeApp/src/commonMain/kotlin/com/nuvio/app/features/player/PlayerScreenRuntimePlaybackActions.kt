@@ -438,8 +438,7 @@ internal fun PlayerScreenRuntime.switchPlaybackEngine() {
         activeInitialPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
         activeInitialProgressFraction = null
     }
-    // Capture the current audio/subtitle selection before the engine changes, so it can be
-    // restored on the new engine once its tracks are available.
+    // Capture the current track selection so it can be restored on the new engine.
     rememberCurrentTrackPreferenceForEngineSwitch(target)
     playbackEngineOverride = target
     // A manual switch is an explicit user decision: never let the automatic engine
@@ -455,11 +454,9 @@ internal fun PlayerScreenRuntime.switchPlaybackEngine() {
 
 /**
  * Switches to the opposite playback engine after a playback error, when the
- * "auto-switch engine on playback error" setting is enabled.
- *
- * Lives outside the engine selection on purpose: the setting applies regardless of which engine
- * the user picked. Fires at most once per source (the engine's own decoder-priority and MIME
- * retries are attempted first, inside the engine), and never after a manual engine switch.
+ * "auto-switch engine on playback error" setting is enabled. Applies whichever engine is
+ * selected; fires at most once per source, after the engine's own retries, and never after a
+ * manual engine switch.
  *
  * @return true when the failover was started and the caller should swallow the error.
  */
@@ -486,8 +483,7 @@ internal fun PlayerScreenRuntime.maybeFailoverPlaybackEngine(
         activeInitialPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
         activeInitialProgressFraction = null
     }
-    // Capture the current audio/subtitle selection before the engine changes, so it can be
-    // restored on the new engine once its tracks are available.
+    // Capture the current track selection so it can be restored on the new engine.
     rememberCurrentTrackPreferenceForEngineSwitch(target)
     playbackEngineOverride = target
     showGestureFeedback(

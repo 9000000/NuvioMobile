@@ -23,8 +23,6 @@ class AutoPlaybackEngineResolverTest {
         )
     }
 
-    // --- HDR / Dolby Vision detection, one field at a time --------------------------------
-    //
     // Every case here pairs the HDR signal with an anime signal (an anime id prefix), because
     // ExoPlayer is also the plain fall-through result. Without the anime signal these assertions
     // would pass even if the HDR scan did not exist at all.
@@ -81,9 +79,7 @@ class AutoPlaybackEngineResolverTest {
 
     @Test
     fun nonWordSeparatedAndSuffixedTokensAreNotDetected() {
-        // Mirrors NuvioTV exactly: the token must be a whole word, so a dotted separator
-        // ("dolby.vision") or a longer word ("hdr10plus") is not detected. Combined with an
-        // anime id, these fall through to the anime branch.
+        // Whole-word tokens only: "dolby.vision" and "hdr10plus" fall through to the anime branch.
         listOf(
             "movie.hdr10plus.mkv",
             "movie.dolby.vision.mkv",
@@ -98,7 +94,7 @@ class AutoPlaybackEngineResolverTest {
 
     @Test
     fun dvSubstringInsideAnotherWordIsNotMistakenForDolbyVision() {
-        // "DVDRip" must not satisfy the \bdv\b alternative, so the anime id wins and libmpv is used.
+        // "DVDRip" must not satisfy \bdv\b.
         assertEquals(
             AndroidPlaybackEngine.Libmpv,
             resolve(videoId = "mal:12345", filename = "Show.S01.DVDRip.1080p.mkv"),
@@ -121,8 +117,6 @@ class AutoPlaybackEngineResolverTest {
         )
     }
 
-    // --- anime id prefixes -----------------------------------------------------------------
-
     @Test
     fun animeIdPrefixesSelectLibmpv() {
         assertEquals(AndroidPlaybackEngine.Libmpv, resolve(videoId = "kitsu:7442"))
@@ -142,8 +136,6 @@ class AutoPlaybackEngineResolverTest {
         assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(videoId = "tmdb:1396"))
     }
 
-    // --- genres ---------------------------------------------------------------------------
-
     @Test
     fun animeGenreSelectsLibmpvRegardlessOfCase() {
         assertEquals(AndroidPlaybackEngine.Libmpv, resolve(genres = listOf("anime")))
@@ -157,11 +149,9 @@ class AutoPlaybackEngineResolverTest {
         assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = emptyList()))
     }
 
-    // --- direct-stream filename -------------------------------------------------------------
-
     @Test
     fun urlBasenameIsUsedAsFilenameOnlyWhenItLooksLikeAFile() {
-        // Mirrors NuvioTV's URL-basename fallback for streams without behaviorHints.filename.
+        // URL-basename fallback for streams without behaviorHints.filename.
         assertEquals(
             "Movie.2024.HDR10.mkv",
             sourceFilenameFromUrl("https://example.com/dl/Movie.2024.HDR10.mkv?token=abc"),
@@ -170,8 +160,6 @@ class AutoPlaybackEngineResolverTest {
         assertNull(sourceFilenameFromUrl("https://example.com/"))
         assertNull(sourceFilenameFromUrl(null))
     }
-
-    // --- animation + country ---------------------------------------------------------------
 
     @Test
     fun animationFromJapanFullNameSelectsLibmpv() {
@@ -200,7 +188,8 @@ class AutoPlaybackEngineResolverTest {
 
     @Test
     fun animationFromAnotherCountryDoesNotSelectLibmpv() {
-        // Regression: TMDB enrichment produces comma-joined ISO codes such as "US, GB".        assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = listOf("Animation"), country = "US, GB"))
+        // Regression: TMDB enrichment produces comma-joined ISO codes such as "US, GB".
+        assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = listOf("Animation"), country = "US, GB"))
         assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = listOf("Animation"), country = "United States"))
         assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = listOf("Animation"), country = "JPX"))
     }
@@ -217,8 +206,6 @@ class AutoPlaybackEngineResolverTest {
         assertEquals(AndroidPlaybackEngine.ExoPlayer, resolve(genres = listOf("Drama"), country = "Japan"))
     }
 
-    // --- precedence ------------------------------------------------------------------------
-
     @Test
     fun animeIdPrefixWinsOverAnimationCountryCheck() {
         assertEquals(
@@ -229,7 +216,7 @@ class AutoPlaybackEngineResolverTest {
 
     @Test
     fun animeIdPrefixIsEvaluatedWithoutMetadata() {
-        // The id check must not depend on genres/country being loaded yet.
+        // The id check must not depend on metadata being loaded yet.
         assertEquals(
             AndroidPlaybackEngine.Libmpv,
             resolve(videoId = "mal:1", genres = emptyList(), country = null),

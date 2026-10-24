@@ -164,9 +164,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 DisposableEffect(Unit) {
                     onDispose { active.value = false }
                 }
-                // With the engine set to Auto, the concrete engine is resolved here, once per
-                // source, rather than inside the playback engine itself. HDR/Dolby Vision wins
-                // over anime; both are decided by the pure resolver so they can be unit tested.
                 // Genres/country come from metadata that can load after first composition, so
                 // the resolution re-runs while the source is still loading; once playback has
                 // loaded the engine is frozen, because a late metadata update must never
@@ -186,11 +183,10 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     )
                 }
                 val resolvedAutoEngine = resolvedAutoEngineState.value
-                // Automatic engine failover and manual engine switches are scoped to one source:
-                // starting a source re-arms the failover and clears any previous engine choice.
-                // The effect is keyed on the source, not on the full playbackKey: playbackKey
-                // includes the engine override, so an effect keyed on it would run right after
-                // the override changed the key and immediately undo the switch that set it.
+                // Failover and manual switches are scoped to one source: a new source re-arms
+                // the failover and clears the previous engine choice. Keyed on the source, not
+                // on the full playbackKey, which includes the engine override — an effect keyed
+                // on it would undo the very switch that changed the key.
                 LaunchedEffect(playbackKey.copy(playbackEngine = null)) {
                     engineFailoverTriggered = false
                     engineFailoverDisarmed = false
@@ -234,10 +230,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                         if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
                             return@PlatformPlayerSurface
                         }
-                        // Engine failover deliberately lives outside the engine enum. It is decided
-                        // here, driven by its own player setting, and applies whichever engine is
-                        // selected. The engine's own decoder/MIME retries have already been tried
-                        // by the time an error surfaces this far.
+                        // Engine failover is decided here, driven by its own player setting;
+                        // the engine's own decoder/MIME retries have already been tried.
                         if (message != null && maybeFailoverPlaybackEngine(resolvedAutoEngine)) {
                             return@PlatformPlayerSurface
                         }
