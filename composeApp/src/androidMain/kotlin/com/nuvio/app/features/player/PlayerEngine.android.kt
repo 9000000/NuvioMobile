@@ -267,6 +267,9 @@ private fun ExoPlayerSurface(
         useYoutubeChunkedPlayback,
         initialPositionRequestKey.orEmpty(),
     )
+    // Tracks whether an ASS track was actively selected and video effects need activation.
+    // When this flips to true, the player remember key changes and player rebuilds with effects.
+    var videoEffectsNeeded by remember(playerSourceKey) { mutableStateOf(false) }
     val playbackDiagnostics = remember(playerSourceKey) { PlaybackDiagnostics() }
     var subtitleDelayMs by remember(playerSourceKey) { mutableStateOf(0) }
     var selectedExternalSubtitleMimeType by remember(playerSourceKey) { mutableStateOf<String?>(null) }
@@ -387,6 +390,7 @@ private fun ExoPlayerSurface(
         playerSettings.bufferForPlaybackAfterRebufferMs,
         playerSettings.backBufferDurationMs,
         playerSettings.targetBufferSizeMb,
+        videoEffectsNeeded,
     ) {
         applyExoPlayerNativeMemory(playerSettings.exoNativeMemoryEnabled)
         val renderersFactory = SubtitleOffsetRenderersFactory(
@@ -466,15 +470,18 @@ private fun ExoPlayerSurface(
                 extractorsFactory = extractorsFactory,
                 renderersFactory = renderersFactory
             ).also { builtPlayer ->
-                // VIDEO_EFFECT: draw subtitles onto each video frame (frame-accurate).
-                // OVERLAY: skip setVideoEffects to preserve HDR passthrough.
-                // Tunneled playback bypasses the video effects pipeline - force overlay.
-                val effectiveMode = if (playerSettings.tunnelingEnabled) "OVERLAY" else playerSettings.libassRenderMode
-                if (effectiveMode != "OVERLAY") {
-                    builtPlayer.getAssHandlerCompat()?.let { handler ->
-                        builtPlayer.setVideoEffects(
-                            listOf(com.nuvio.tv.libass.media.effect.AssVideoEffectAsync(handler))
-                        )
+                // Apply video effects only when ASS track was detected as selected.
+                // On first init videoEffectsNeeded is false. When onTracksChanged
+                // detects a selected ASS track, it flips to true which triggers a
+                // player rebuild via the remember key.
+                if (videoEffectsNeeded) {
+                    val effectiveMode = if (playerSettings.tunnelingEnabled) "OVERLAY" else playerSettings.libassRenderMode
+                    if (effectiveMode != "OVERLAY") {
+                        builtPlayer.getAssHandlerCompat()?.let { handler ->
+                            builtPlayer.setVideoEffects(
+                                listOf(com.nuvio.tv.libass.media.effect.AssVideoEffectAsync(handler))
+                            )
+                        }
                     }
                 }
             }
@@ -752,6 +759,21 @@ private fun ExoPlayerSurface(
                         .build()
                     if (idx >= 0) {
                         exoPlayer.selectTrackByIndex(C.TRACK_TYPE_TEXT, idx)
+                    }
+                }
+                // Trigger player rebuild with video effects when ASS track becomes selected
+                // and render mode is VIDEO_EFFECT.
+                if (!videoEffectsNeeded && useLibass && libassRenderMode != "OVERLAY") {
+                    val hasSelectedAss = tracks.groups.any { group ->
+                        group.isSelected && group.type == C.TRACK_TYPE_TEXT &&
+                            (0 until group.length).any { i ->
+                                group.isTrackSelected(i) &&
+                                    group.getTrackFormat(i).sampleMimeType == MimeTypes.TEXT_SSA
+                            }
+                    }
+                    if (hasSelectedAss) {
+                        Log.d(TAG, "onTracksChanged: ASS track selected, triggering video effect rebuild")
+                        videoEffectsNeeded = true
                     }
                 }
                 dispatchExoPlayerSnapshot()
