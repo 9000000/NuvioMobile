@@ -771,7 +771,13 @@ private fun ExoPlayerSurface(
                                     group.getTrackFormat(i).sampleMimeType == MimeTypes.TEXT_SSA
                             }
                     }
-                    if (hasSelectedAss) {
+                    val hasDvVideo = tracks.groups.any { group ->
+                        group.isSelected && group.type == C.TRACK_TYPE_VIDEO &&
+                            (0 until group.length).any { i ->
+                                group.getTrackFormat(i).sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION
+                            }
+                    }
+                    if (hasSelectedAss && !hasDvVideo) {
                         Log.d(TAG, "onTracksChanged: ASS track selected, triggering video effect rebuild")
                         videoEffectsNeeded = true
                     }
