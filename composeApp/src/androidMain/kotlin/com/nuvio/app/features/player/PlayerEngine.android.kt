@@ -11,6 +11,7 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Build
 import android.os.SystemClock
+import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.util.AttributeSet
 import androidx.compose.runtime.getValue
@@ -256,6 +257,7 @@ private fun ExoPlayerSurface(
     val libassRenderType = runCatching {
         LibassRenderType.valueOf(playerSettings.libassRenderType)
     }.getOrDefault(LibassRenderType.CUES)
+    val libassRenderMode = playerSettings.libassRenderMode
     val playerSourceKey = listOf(
         sourceUrl,
         sourceAudioUrl.orEmpty(),
@@ -463,7 +465,19 @@ private fun ExoPlayerSurface(
                 dataSourceFactory = dataSourceFactory,
                 extractorsFactory = extractorsFactory,
                 renderersFactory = renderersFactory
-            )
+            ).also { builtPlayer ->
+                // VIDEO_EFFECT: draw subtitles onto each video frame (frame-accurate).
+                // OVERLAY: skip setVideoEffects to preserve HDR passthrough.
+                // Tunneled playback bypasses the video effects pipeline - force overlay.
+                val effectiveMode = if (playerSettings.tunnelingEnabled) "OVERLAY" else playerSettings.libassRenderMode
+                if (effectiveMode != "OVERLAY") {
+                    builtPlayer.getAssHandlerCompat()?.let { handler ->
+                        builtPlayer.setVideoEffects(
+                            listOf(com.nuvio.tv.libass.media.effect.AssVideoEffectAsync(handler))
+                        )
+                    }
+                }
+            }
         } else {
             val mediaSourceFactory = DefaultMediaSourceFactory(
                 dataSourceFactory,
@@ -713,6 +727,9 @@ private fun ExoPlayerSurface(
                 latestOnSnapshot.value(exoPlayer.snapshot())
                 if (videoSize.width > 0 && videoSize.height > 0) {
                     videoAspectRatio = videoSize.width.toFloat() / videoSize.height.toFloat()
+                }
+                playerViewRef?.post {
+                    playerViewRef?.updateAssMargins(videoAspectRatio)
                 }
             }
 
@@ -1045,6 +1062,9 @@ private fun ExoPlayerSurface(
 
                 override fun setSubtitleDelayMs(delayMs: Int) {
                     subtitleDelayMs = delayMs.coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS)
+                    exoPlayer.getAssHandlerCompat()?.let {
+                        it.subtitleDelayUs = subtitleDelayMs.toLong() * 1000L
+                    }
                 }
             }),
         )
@@ -1082,6 +1102,8 @@ private fun ExoPlayerSurface(
                     player = exoPlayer,
                     enabled = useLibass,
                     renderType = libassRenderType,
+                    renderMode = libassRenderMode,
+                    tunnelingEnabled = playerSettings.tunnelingEnabled,
                 )
                 applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
             }
@@ -1097,6 +1119,8 @@ private fun ExoPlayerSurface(
                 player = exoPlayer,
                 enabled = useLibass,
                 renderType = libassRenderType,
+                renderMode = libassRenderMode,
+                tunnelingEnabled = playerSettings.tunnelingEnabled,
             )
             playerView.applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
         },
@@ -2103,6 +2127,8 @@ private fun PlayerView.syncLibassOverlay(
     player: ExoPlayer,
     enabled: Boolean,
     renderType: LibassRenderType,
+    renderMode: String = "VIDEO_EFFECT",
+    tunnelingEnabled: Boolean = false,
 ) {
     val containerId = if (renderType == LibassRenderType.OVERLAY_OPEN_GL) {
         R.id.libass_overlay_container_gl
@@ -2110,7 +2136,9 @@ private fun PlayerView.syncLibassOverlay(
         R.id.libass_overlay_container
     }
     val overlayContainer = findViewById<android.widget.FrameLayout>(containerId) ?: return
-    val needsOverlay = enabled
+    // Overlay is needed only in OVERLAY render mode or tunneled playback.
+    // VIDEO_EFFECT draws subtitles directly onto each video frame - no overlay needed.
+    val needsOverlay = enabled && (renderMode == "OVERLAY" || tunnelingEnabled)
     val boundPlayer = getTag(R.id.libass_overlay_bound_player) as? ExoPlayer
     val hasOverlayChild = overlayContainer.hasAssOverlayChild()
 
@@ -2144,9 +2172,8 @@ private fun PlayerView.syncLibassOverlay(
         android.widget.FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
     )
     setTag(R.id.libass_overlay_bound_player, player)
+    post { syncLibassOverlayGeometry() }
 }
-
-
 private fun android.widget.FrameLayout.hasAssOverlayChild(): Boolean {
     for (index in 0 until childCount) {
         if (getChildAt(index) is AssSubtitleSurfaceView) {
@@ -2179,6 +2206,81 @@ private fun displayedVideoHeightPx(viewSize: IntSize, videoSize: VideoSize): Flo
     if (viewSize.width <= 0 || viewSize.height <= 0 || videoSize.width <= 0 || videoSize.height <= 0) return null
     val videoAspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
     return minOf(viewSize.height.toFloat(), viewSize.width / videoAspect)
+}
+
+/**
+ * [pipVideoHeightPx] is null outside PiP. In PiP it is the video height outside PiP (0 if unknown),
+ * so subtitles shrink and grow with the video exactly as it is shown full screen.
+ */
+
+private fun transformedChildBoundsInParent(child: View): android.graphics.RectF? {
+    if (child.width <= 0 || child.height <= 0) return null
+    return android.graphics.RectF(0f, 0f, child.width.toFloat(), child.height.toFloat()).also { bounds ->
+        child.matrix.mapRect(bounds)
+        bounds.offset(child.left.toFloat(), child.top.toFloat())
+    }
+}
+
+private data class LibassOverlayMargins(
+    val top: Int,
+    val bottom: Int,
+    val left: Int,
+    val right: Int
+)
+
+private fun libassOverlayMargins(
+    overlayWidth: Int,
+    overlayHeight: Int,
+    videoBounds: android.graphics.RectF
+): LibassOverlayMargins? {
+    if (
+        overlayWidth <= 0 || overlayHeight <= 0 ||
+        !videoBounds.left.isFinite() || !videoBounds.top.isFinite() ||
+        !videoBounds.right.isFinite() || !videoBounds.bottom.isFinite() ||
+        videoBounds.width() <= 0f || videoBounds.height() <= 0f
+    ) {
+        return null
+    }
+    return LibassOverlayMargins(
+        top = videoBounds.top.roundToInt(),
+        bottom = (overlayHeight - videoBounds.bottom).roundToInt(),
+        left = videoBounds.left.roundToInt(),
+        right = (overlayWidth - videoBounds.right).roundToInt()
+    )
+}
+
+/**
+ * Computes the distance from the libass overlay frame to the visible video rectangle
+ * using the actual transformed bounds of exo_content_frame, then applies them to
+ * AssHandler. Only runs when the overlay SurfaceView exists (OVERLAY render mode).
+ */
+private fun PlayerView.syncLibassOverlayGeometry() {
+    val overlay = findViewById<android.widget.FrameLayout>(R.id.libass_overlay_container_gl)
+    val assOverlayView = overlay?.findAssOverlayChild()
+    val contentFrame = findViewById<AspectRatioFrameLayout>(androidx.media3.ui.R.id.exo_content_frame)
+    val exoPlayer = player as? ExoPlayer
+    val assHandler = exoPlayer?.getAssHandlerCompat()
+
+    if (assOverlayView == null || assHandler == null || contentFrame == null) return
+
+    val overlayWidth = overlay?.width ?: 0
+    val overlayHeight = overlay?.height ?: 0
+    val videoBounds = transformedChildBoundsInParent(contentFrame) ?: return
+    val margins = libassOverlayMargins(overlayWidth, overlayHeight, videoBounds) ?: return
+
+    assHandler.setMargins(margins.top, margins.bottom, margins.left, margins.right)
+    assHandler.setUseMargins(false)
+    assOverlayView.invalidateSubtitles()
+}
+
+private fun android.widget.FrameLayout.findAssOverlayChild(): AssSubtitleSurfaceView? {
+    for (index in 0 until childCount) {
+        val child = getChildAt(index)
+        if (child is AssSubtitleSurfaceView) {
+            return child
+        }
+    }
+    return null
 }
 
 /**

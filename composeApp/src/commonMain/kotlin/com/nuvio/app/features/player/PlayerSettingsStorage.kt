@@ -156,6 +156,8 @@ internal expect object PlayerSettingsStorage {
     fun saveLibassRenderType(renderType: String)
     fun loadLibassRenderScale(): String?
     fun saveLibassRenderScale(scale: String)
+    fun loadLibassRenderMode(): String?
+    fun saveLibassRenderMode(mode: String)
     fun loadIosVideoOutputPreset(): String?
     fun saveIosVideoOutputPreset(preset: String)
     fun loadIosToneMappingMode(): String?

@@ -414,6 +414,7 @@ fun SettingsScreen(
                         useLibass = playerSettingsUiState.useLibass,
                         libassRenderType = playerSettingsUiState.libassRenderType,
                         libassRenderScale = playerSettingsUiState.libassRenderScale,
+                        libassRenderMode = playerSettingsUiState.libassRenderMode,
                         rememberLastProfileEnabled = profileSettingsState.rememberLastProfileEnabled,
                         selectedTheme = selectedTheme,
                         onThemeSelected = ThemeSettingsRepository::setTheme,
@@ -483,6 +484,7 @@ fun SettingsScreen(
                         useLibass = playerSettingsUiState.useLibass,
                         libassRenderType = playerSettingsUiState.libassRenderType,
                         libassRenderScale = playerSettingsUiState.libassRenderScale,
+                        libassRenderMode = playerSettingsUiState.libassRenderMode,
                         rememberLastProfileEnabled = profileSettingsState.rememberLastProfileEnabled,
                         selectedTheme = selectedTheme,
                         onThemeSelected = ThemeSettingsRepository::setTheme,
@@ -564,6 +566,7 @@ private fun MobileSettingsScreen(
     useLibass: Boolean,
     libassRenderType: String,
     libassRenderScale: String,
+    libassRenderMode: String,
     rememberLastProfileEnabled: Boolean,
     selectedTheme: AppTheme,
     onThemeSelected: (AppTheme) -> Unit,
@@ -769,6 +772,7 @@ private fun MobileSettingsScreen(
                     useLibass = useLibass,
                     libassRenderType = libassRenderType,
                     libassRenderScale = libassRenderScale,
+                    libassRenderMode = libassRenderMode,
                 )
                 SettingsPage.Streams -> streamsSettingsContent(
                     isTablet = false,
@@ -951,6 +955,7 @@ private fun TabletSettingsScreen(
     useLibass: Boolean,
     libassRenderType: String,
     libassRenderScale: String,
+    libassRenderMode: String,
     rememberLastProfileEnabled: Boolean,
     selectedTheme: AppTheme,
     onThemeSelected: (AppTheme) -> Unit,
@@ -1212,6 +1217,7 @@ private fun TabletSettingsScreen(
                         useLibass = useLibass,
                         libassRenderType = libassRenderType,
                     libassRenderScale = libassRenderScale,
+                    libassRenderMode = libassRenderMode,
                     )
                     SettingsPage.Streams -> streamsSettingsContent(
                         isTablet = true,
