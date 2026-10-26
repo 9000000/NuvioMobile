@@ -2396,13 +2396,13 @@ private fun LibassRenderModeDialog(
     onDismiss: () -> Unit,
 ) {
     val options = listOf(
-        "VIDEO_EFFECT" to Pair(
-            Res.string.settings_playback_render_mode_video_effect,
-            Res.string.settings_playback_render_mode_video_effect_description
-        ),
         "OVERLAY" to Pair(
             Res.string.settings_playback_render_mode_overlay,
             Res.string.settings_playback_render_mode_overlay_description
+        ),
+        "VIDEO_EFFECT" to Pair(
+            Res.string.settings_playback_render_mode_video_effect,
+            Res.string.settings_playback_render_mode_video_effect_description
         ),
     )
 
