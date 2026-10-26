@@ -1160,7 +1160,7 @@
     <string name="settings_playback_render_mode_video_effect">Video Effect</string>
     <string name="settings_playback_render_mode_video_effect_description">Draws subtitles directly onto each video frame. Frame-accurate timing on all hardware. HDR content is tone-mapped to SDR.</string>
     <string name="settings_playback_render_mode_overlay">Overlay</string>
-    <string name="settings_playback_render_mode_overlay_description">Renders subtitles on a separate surface layer. Preserves HDR output. Subtitle timing may not be perfectly accurate on some TVs.</string>
+    <string name="settings_playback_render_mode_overlay_description">Renders subtitles on a separate surface layer. Preserves HDR output. Subtitle timing may not be perfectly accurate on some devices.</string>
     <string name="settings_playback_reuse_last_link">Reuse Last Link</string>
     <string name="settings_playback_reuse_last_link_description">Auto-play your last working stream for this same movie/episode when cache is still valid</string>
     <string name="settings_playback_secondary_audio_language">Secondary Audio Language</string>
