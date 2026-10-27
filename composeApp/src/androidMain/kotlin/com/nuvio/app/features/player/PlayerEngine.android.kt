@@ -779,6 +779,23 @@ private fun ExoPlayerSurface(
                     }
                     if (hasSelectedAss && !hasDvVideo) {
                         Log.d(TAG, "onTracksChanged: ASS track selected, triggering video effect rebuild")
+                        // Save current subtitle selection to restore after rebuild.
+                        // Find the selected text track index in the current tracks.
+                        var selectedSubIdx = -1
+                        var textIdx = 0
+                        for (group in tracks.groups) {
+                            if (group.type != C.TRACK_TYPE_TEXT) continue
+                            for (i in 0 until group.length) {
+                                if (group.isTrackSelected(i)) {
+                                    selectedSubIdx = textIdx
+                                }
+                                textIdx++
+                            }
+                        }
+                        if (selectedSubIdx >= 0) {
+                            pendingSubtitleTrackIndex.clear()
+                            pendingSubtitleTrackIndex.add(selectedSubIdx)
+                        }
                         videoEffectsNeeded = true
                     }
                 }
