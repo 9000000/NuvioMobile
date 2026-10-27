@@ -424,7 +424,7 @@
     <string name="compose_player_color">Цвят</string>
     <string name="compose_player_currently_playing">В момента се възпроизвежда</string>
     <string name="compose_player_episode_code_episode_only">Епизод %1$d</string>
-    <string name="compose_player_episode_code_full">Сезон %1$d Епизод%2$d</string>
+    <string name="compose_player_episode_code_full">Сезон %1$d Епизод %2$d</string>
     <string name="compose_player_episode_title_format">Сезон %1$d Епизод %2$d • %3$s</string>
     <string name="compose_player_episodes">Епизоди</string>
     <string name="compose_player_font_size">Размер на шрифта</string>
