@@ -119,7 +119,7 @@
     <string name="collections_editor_selected_count">%1$d избрани</string>
     <string name="collections_editor_catalog_count">%1$d каталога</string>
     <string name="collections_editor_catalog_selected_count">%1$d избрани</string>
-    <string name="collections_editor_shape_poster">Постер</string>
+    <string name="collections_editor_shape_poster">Плакат</string>
     <string name="collections_editor_shape_square">Квадрат</string>
     <string name="collections_editor_shape_wide">Широк</string>
     <string name="collections_editor_show_all_tab_desc">Обедини всички каталози в един раздел</string>
@@ -512,7 +512,7 @@
     <string name="compose_settings_page_notifications">Известия</string>
     <string name="compose_settings_page_playback">Възпроизвеждане</string>
     <string name="compose_settings_page_plugins">Плъгини</string>
-    <string name="compose_settings_page_poster_customization">Стил на картичката с постер</string>
+    <string name="compose_settings_page_poster_customization">Стил на картичката с плакат</string>
     <string name="compose_settings_page_privacy_policy">Настройки на поверителността</string>
     <string name="compose_settings_page_root">Настройки</string>
     <string name="compose_settings_page_streams">Източници</string>
@@ -526,7 +526,7 @@
     <string name="compose_settings_root_account_section">ПРОФИЛ</string>
     <string name="compose_settings_root_advanced_description">Поведение при стартиране и профил.</string>
     <string name="compose_settings_root_advanced_section">РАЗШИРЕНИ</string>
-    <string name="compose_settings_root_appearance_description">Настройки за начален екран и стилове на постери</string>
+    <string name="compose_settings_root_appearance_description">Настройки за начален екран и стилове на плакати</string>
     <string name="compose_settings_root_check_updates_description">Изтегли последна версия</string>
     <string name="compose_settings_root_check_updates_title">Провери за актуализации</string>
     <string name="compose_settings_root_content_discovery_description">Настройки добавки и източници за откриване.</string>
@@ -755,12 +755,13 @@
     <string name="settings_card_depth_surface_cast">Актьорски състав</string>
     <string name="settings_card_depth_surface_trailers">Трейлъри</string>
     <string name="settings_poster_card_radius">Радиус на ъглите</string>
-    <string name="settings_poster_card_style">СТИЛ НА КАРТИЧКАТА С ПОСТЕР</string>
+    <string name="settings_poster_card_style">СТИЛ НА КАРТИЧКАТА С ПЛАКАТИ</string>
     <string name="settings_poster_card_width">Ширина</string>
     <string name="settings_poster_custom">Персонализиран</string>
     <string name="settings_poster_description">Настрой ширината на картичката и радиуса на ъглите.</string>
     <string name="settings_poster_hide_labels">Скрий надписите</string>
-    <string name="settings_poster_landscape_mode">Хоризонтални постери</string>
+    <string name="settings_poster_always_show_landscape_clearlogo">Винаги фон с лого за пейзажни плакати</string>
+    <string name="settings_poster_landscape_mode">Хоризонтални плакати</string>
     <string name="settings_poster_live_preview">Преглед на живо</string>
     <string name="settings_poster_option_with_value">%1$s (%2$s)</string>
     <string name="settings_poster_preview_corner_radius">Радиус на ъглите: %1$ddp</string>
@@ -793,7 +794,7 @@
     <string name="settings_continue_watching_sort_mode_split_upcoming">Отдели ред „Предстоящи“</string>
     <string name="settings_continue_watching_sort_mode_split_upcoming_desc">Премести неизлъчените епизоди в отделен ред „Предстоящи“</string>
     <string name="upcoming_section_title">Предстоящи</string>
-    <string name="settings_continue_watching_section_card_style">СТИЛ НА КАРТИЧКАТА С ПОСТЕР</string>
+    <string name="settings_continue_watching_section_card_style">СТИЛ НА КАРТИЧКАТА С ПЛАКАТИ</string>
     <string name="settings_continue_watching_section_on_launch">ПРИ СТАРТИРАНЕ</string>
     <string name="settings_continue_watching_section_up_next_behavior">ПОВЕДЕНИЕ НА „СЛЕДВА"</string>
     <string name="settings_continue_watching_section_visibility">ВИДИМОСТ</string>
@@ -801,8 +802,8 @@
     <string name="settings_continue_watching_show_title">Покажи „Продължи гледането"</string>
     <string name="settings_continue_watching_style_card">Картичка</string>
     <string name="settings_continue_watching_style_card_description">Хоризонтална картичка в стил телевизор</string>
-    <string name="settings_continue_watching_style_poster">Постер</string>
-    <string name="settings_continue_watching_style_poster_description">Картичка с постер с приоритет на изображението</string>
+    <string name="settings_continue_watching_style_poster">Плакат</string>
+    <string name="settings_continue_watching_style_poster_description">Картичка с плакат с приоритет на изображението</string>
     <string name="settings_continue_watching_style_wide">Широк</string>
     <string name="settings_continue_watching_style_wide_description">Хоризонтална картичка с много информация</string>
     <string name="settings_continue_watching_up_next_description">Покажи следващия епизод въз основа на най-далеч гледания. Деактивирайте при повторно гледане, за да използвате вместо това последно гледания епизод.</string>
@@ -814,7 +815,7 @@
     <string name="settings_content_discovery_addons_description">Инсталирай, премахвай, обновявай и сортирай източници на съдържание.</string>
     <string name="settings_content_discovery_addons_description_appstore">Добавяйте и управлявайте добавките, които използвате с Nuvio.</string>
     <string name="settings_content_discovery_plugins_description">Инсталирай JavaScript scraper хранилища и тествай доставчиците вътрешно.</string>
-    <string name="settings_content_discovery_homescreen_description">Настройки за оформлението на началото, видимостта на съдържанието и поведението на постерите</string>
+    <string name="settings_content_discovery_homescreen_description">Настройки за оформлението на началото, видимостта на съдържанието и поведението на плакатите</string>
     <string name="settings_content_discovery_meta_screen_description">Настройки за екраните с детайли и епизоди.</string>
     <string name="settings_content_discovery_collections_description">Настройки за персонализирани групи от каталози с папки, показвани на началото.</string>
     <string name="settings_integrations_section_title">ИНТЕГРАЦИИ</string>
@@ -1206,8 +1207,8 @@
     <string name="settings_tmdb_module_networks_description">Мрежи с лога от TMDB</string>
     <string name="settings_tmdb_module_production_companies">Продукции</string>
     <string name="settings_tmdb_module_production_companies_description">Продукционни компании от TMDB</string>
-    <string name="settings_tmdb_module_season_posters">Постери на сезони</string>
-    <string name="settings_tmdb_module_season_posters_description">Използвай TMDB постери на сезони в селектора за сезони на екрана с метаданни за сериали.</string>
+    <string name="settings_tmdb_module_season_posters">Плакати на сезони</string>
+    <string name="settings_tmdb_module_season_posters_description">Използвай TMDB плакати на сезони в селектора за сезони на екрана с метаданни за сериали.</string>
     <string name="settings_tmdb_module_trailers">Трейлъри</string>
     <string name="settings_tmdb_module_trailers_description">Кандидати за трейлъри от TMDB видеа за раздела с трейлъри в детайлите</string>
     <string name="settings_tmdb_preferred_language">Език</string>
@@ -1776,7 +1777,7 @@
     <string name="details_origin_country">Държава на произход</string>
     <string name="details_release_info">Информация за излизане</string>
     <string name="details_runtime">Продължителност</string>
-    <string name="details_season_view_posters">Постери</string>
+    <string name="details_season_view_posters">Плакати</string>
     <string name="details_season_view_text">Текст</string>
     <string name="details_show_details">Детайли за сериала</string>
     <string name="details_status">Статус</string>
