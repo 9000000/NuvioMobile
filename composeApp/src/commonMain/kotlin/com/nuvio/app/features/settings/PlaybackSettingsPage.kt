@@ -111,6 +111,7 @@ internal fun LazyListScope.playbackSettingsContent(
     streamReuseLastLinkEnabled: Boolean,
     streamReuseLastLinkCacheHours: Int,
     androidPlaybackEngine: AndroidPlaybackEngine,
+    autoSwitchPlaybackEngineOnError: Boolean,
     androidLibmpvVideoOutput: AndroidLibmpvVideoOutput,
     androidLibmpvHardwareDecodingEnabled: Boolean,
     androidLibmpvYuv420pEnabled: Boolean,
@@ -137,6 +138,7 @@ internal fun LazyListScope.playbackSettingsContent(
             streamReuseLastLinkEnabled = streamReuseLastLinkEnabled,
             streamReuseLastLinkCacheHours = streamReuseLastLinkCacheHours,
             androidPlaybackEngine = androidPlaybackEngine,
+            autoSwitchPlaybackEngineOnError = autoSwitchPlaybackEngineOnError,
             androidLibmpvVideoOutput = androidLibmpvVideoOutput,
             androidLibmpvHardwareDecodingEnabled = androidLibmpvHardwareDecodingEnabled,
             androidLibmpvYuv420pEnabled = androidLibmpvYuv420pEnabled,
@@ -326,6 +328,7 @@ private fun PlaybackSettingsSection(
     streamReuseLastLinkEnabled: Boolean,
     streamReuseLastLinkCacheHours: Int,
     androidPlaybackEngine: AndroidPlaybackEngine,
+    autoSwitchPlaybackEngineOnError: Boolean,
     androidLibmpvVideoOutput: AndroidLibmpvVideoOutput,
     androidLibmpvHardwareDecodingEnabled: Boolean,
     androidLibmpvYuv420pEnabled: Boolean,
@@ -984,6 +987,17 @@ private fun PlaybackSettingsSection(
                         enabled = decoderEnabled,
                         isTablet = isTablet,
                         onClick = { showPlaybackEngineDialog = true },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_playback_auto_switch_engine_on_error),
+                        description = stringResource(
+                            Res.string.settings_playback_auto_switch_engine_on_error_description,
+                        ),
+                        checked = autoSwitchPlaybackEngineOnError,
+                        enabled = decoderEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = PlayerSettingsRepository::setAutoSwitchPlaybackEngineOnError,
                     )
                     if (libmpvOptionsVisible) {
                         SettingsGroupDivider(isTablet = isTablet)
@@ -2234,6 +2248,11 @@ private fun PlaybackEngineDialog(
     onEngineSelected: (AndroidPlaybackEngine) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val engineOrder = listOf(
+        AndroidPlaybackEngine.ExoPlayer,
+        AndroidPlaybackEngine.Libmpv,
+        AndroidPlaybackEngine.Auto,
+    )
     val descriptions = mapOf(
         AndroidPlaybackEngine.Auto to Res.string.settings_playback_engine_auto_description,
         AndroidPlaybackEngine.ExoPlayer to Res.string.settings_playback_engine_exoplayer_description,
@@ -2248,7 +2267,7 @@ private fun PlaybackEngineDialog(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            AndroidPlaybackEngine.entries.forEach { engine ->
+            engineOrder.forEach { engine ->
                 val isSelected = engine == selectedEngine
                 DialogOption(
                     text = engine.label,
