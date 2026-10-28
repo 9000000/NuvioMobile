@@ -1,6 +1,5 @@
 package com.nuvio.app.features.settings
 
-import androidx.compose.ui.graphics.vector.ImageVector
 import com.nuvio.app.features.player.AndroidPlaybackEngine
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.StringResource
@@ -18,9 +17,7 @@ internal enum class PlaybackSection(
     Subtitles(SettingsPage.PlaybackSubtitles, Res.string.settings_playback_page_subtitles_description),
     Video(SettingsPage.PlaybackVideo, Res.string.settings_playback_page_video_description),
     Buffer(SettingsPage.PlaybackBuffer, Res.string.settings_playback_page_buffer_description),
-    P2p(SettingsPage.PlaybackP2p, Res.string.settings_playback_page_p2p_description);
-
-    val icon: ImageVector get() = page.icon
+    P2p(SettingsPage.PlaybackP2p, Res.string.settings_playback_page_p2p_description),
 }
 
 internal fun visiblePlaybackSections(
