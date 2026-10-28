@@ -2308,7 +2308,7 @@
     <string name="player_skip_to_post_credits">Към сцените след надписите</string>
     <string name="layout_overall_ratings">Общи оценки</string>
     <string name="layout_overall_ratings_sub_on">Показват се стандартните оценки и тези от TMDB.</string>
-    <string name="layout_overall_ratings_sub_off">Стандартните оценки и тези от TMDB са скрити.</string> Настройките на доставчика MDBList са с приоритет на страниците с подробна информация.</string>
+    <string name="layout_overall_ratings_sub_off">Стандартните оценки и тези от TMDB са скрити. Настройките на доставчика MDBList са с приоритет на страниците с подробна информация.</string>
     <string name="layout_episode_ratings">Оценки на епизоди</string>
     <string name="layout_episode_ratings_sub">Изберете кои оценки на епизоди да се виждат.</string>
     <string name="layout_ratings_show">Показване</string>
@@ -2329,7 +2329,7 @@
     <string name="random_episode_unwatched">Негледани епизоди</string>
     <string name="random_episode_include_watched">Всички епизоди</string>
     <string name="random_episode_empty_subtitle">Няма налични епизоди за разбъркване.</string>
-    <string name="random_episode_caught_up">Изгледали сте всички епизоди.</string> Изберете всички епизоди за повторно гледане.</string>
+    <string name="random_episode_caught_up">Изгледали сте всички епизоди. Изберете всички епизоди за повторно гледане.</string>
     <string name="random_episode_loading">Зареждане на епизоди…</string>
     <string name="shuffle_starting">Стартиране на произволно възпроизвеждане…</string>
     <string name="shuffle_choose_episodes">Изберете кои епизоди да бъдат включени в произволното възпроизвеждане.</string>
