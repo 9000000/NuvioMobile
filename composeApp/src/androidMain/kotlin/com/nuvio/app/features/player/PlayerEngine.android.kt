@@ -10,6 +10,7 @@ import android.util.TypedValue
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Build
+import android.os.Handler
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -55,6 +56,10 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.ForwardingRenderer
 import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.text.TextOutput
@@ -276,6 +281,7 @@ private fun ExoPlayerSurface(
     var videoAspectRatio by remember(playerSourceKey) { mutableStateOf(0f) }
     val latestVideoAspectRatio = rememberUpdatedState(videoAspectRatio)
     var currentSubtitleStyle by remember { mutableStateOf(SubtitleStyleState.DEFAULT) }
+    val subtitleStyleGuard = remember { SubtitleStyleGuard() }
     var decoderPriorityOverride by remember(playerSourceKey) { mutableStateOf<Int?>(null) }
     var fallbackStartPositionMs by remember(playerSourceKey) { mutableStateOf<Long?>(null) }
     val effectiveDecoderPriority = decoderPriorityOverride ?: playerSettings.decoderPriority
@@ -298,6 +304,10 @@ private fun ExoPlayerSurface(
         )
     }
     var probeAttempted by remember(playerSourceKey) { mutableStateOf(false) }
+
+    val isLocalFileSource = remember(resolvedMediaItem) {
+        resolvedMediaItem.isLocalFileSource()
+    }
 
     val extractorsFactory = remember(sourceUrl) {
         DefaultExtractorsFactory()
@@ -444,6 +454,7 @@ private fun ExoPlayerSurface(
                 backBufferDurationMs = playerSettings.backBufferDurationMs,
                 targetBufferSizeMb = playerSettings.targetBufferSizeMb,
             ),
+            localFileSource = isLocalFileSource,
         )
 
         val playerBuilder = ExoPlayer.Builder(context)
@@ -875,6 +886,8 @@ private fun ExoPlayerSurface(
             autoSyncCoordinator.wrap(object : PlayerEngineController { // AutoSync hook
                 override val playbackEngine = AndroidPlaybackEngine.ExoPlayer
 
+                private val audioTrackCache = AudioTrackCache()
+
                 override fun play() {
                     exoPlayer.playWhenReady = true
                     exoPlayer.play()
@@ -916,7 +929,7 @@ private fun ExoPlayerSurface(
                 }
 
                 override fun getAudioTracks(): List<AudioTrack> =
-                    exoPlayer.extractAudioTracks(context)
+                    audioTrackCache.tracks(exoPlayer, context)
 
                 override suspend fun getMediaInfo(): PlayerMediaInfo {
                     val video = exoPlayer.videoFormat
@@ -1146,7 +1159,9 @@ private fun ExoPlayerSurface(
                     renderMode = libassRenderMode,
                     tunnelingEnabled = playerSettings.tunnelingEnabled,
                 )
-                applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
+                if (subtitleStyleGuard.shouldApply(this, currentSubtitleStyle, pipVideoHeightPx)) {
+                    applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
+                }
             }
         },
         update = { playerView ->
@@ -1162,7 +1177,9 @@ private fun ExoPlayerSurface(
                 renderMode = libassRenderMode,
                 tunnelingEnabled = playerSettings.tunnelingEnabled,
             )
-            playerView.applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
+            if (subtitleStyleGuard.shouldApply(playerView, currentSubtitleStyle, pipVideoHeightPx)) {
+                playerView.applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
+            }
         },
     )
 }
@@ -1185,7 +1202,6 @@ private fun LibmpvPlayerSurface(
     onError: (String?) -> Unit,
 ) {
     val context = LocalContext.current
-    val isLocalFileSource = sourceUrl.startsWith("file:", ignoreCase = true)
     val lifecycleOwner = LocalLifecycleOwner.current
     val latestOnSnapshot = rememberUpdatedState(onSnapshot)
     val latestOnError = rememberUpdatedState(onError)
@@ -1452,8 +1468,8 @@ private fun LibmpvPlayerSurface(
         factory = { viewContext ->
             NuvioLibmpvView(
                 context = viewContext,
-                videoOutput = if (isLocalFileSource) AndroidLibmpvVideoOutput.Gpu else videoOutput,
-                hardwareDecodingEnabled = if (isLocalFileSource) false else hardwareDecodingEnabled,
+                videoOutput = videoOutput,
+                hardwareDecodingEnabled = hardwareDecodingEnabled,
                 yuv420pEnabled = yuv420pEnabled,
             ).apply {
                 layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
@@ -2243,6 +2259,26 @@ private fun displayedVideoHeightPx(viewSize: IntSize, videoSize: VideoSize): Flo
 }
 
 /**
+ * Remembers the last subtitle style applied to a [PlayerView] so the style is not set again on
+ * every snapshot.
+ */
+private class SubtitleStyleGuard {
+    private var view: PlayerView? = null
+    private var style: SubtitleStyleState? = null
+    private var pipVideoHeightPx: Float? = null
+
+    fun shouldApply(view: PlayerView, style: SubtitleStyleState, pipVideoHeightPx: Float?): Boolean {
+        if (this.view === view && this.style == style && this.pipVideoHeightPx == pipVideoHeightPx) {
+            return false
+        }
+        this.view = view
+        this.style = style
+        this.pipVideoHeightPx = pipVideoHeightPx
+        return true
+    }
+}
+
+/**
  * [pipVideoHeightPx] is null outside PiP. In PiP it is the video height outside PiP (0 if unknown),
  * so subtitles shrink and grow with the video exactly as it is shown full screen.
  */
@@ -2351,6 +2387,54 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipVideoHei
             // Full-screen size unknown: fall back to a fixed PiP scale.
             else -> setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp * PIP_FALLBACK_SUBTITLE_SCALE)
         }
+    }
+}
+
+/**
+ * A downloaded file is read from disk, so it needs a much smaller buffer than a stream.
+ * `content:` URIs that do not come from a download provider point at local files too.
+ */
+private fun MediaItem.isLocalFileSource(): Boolean {
+    val uri = localConfiguration?.uri ?: return false
+    return when (uri.scheme?.lowercase()) {
+        "file" -> true
+        "content" -> !uri.authority.orEmpty().contains("downloads", ignoreCase = true)
+        else -> false
+    }
+}
+
+/**
+ * Cheap fingerprint of the player's audio groups and their selection. The full track list is
+ * only rebuilt when this signature changes, so the runtime tick does not allocate a new list.
+ */
+private fun ExoPlayer.audioTrackSignature(): String {
+    val signature = StringBuilder()
+    for (group in currentTracks.groups) {
+        if (group.type != C.TRACK_TYPE_AUDIO) continue
+        signature.append(group.length).append(':')
+            .append(group.isSelected).append(':')
+        val trackCount = group.mediaTrackGroup.length
+        if (trackCount > 0) {
+            val format = group.mediaTrackGroup.getFormat(0)
+            signature.append(format.id).append(':').append(format.language)
+        }
+        signature.append(';')
+    }
+    return signature.toString()
+}
+
+/** Caches the audio track list and rebuilds it only when the track signature changes. */
+private class AudioTrackCache {
+    private var signature: String? = null
+    private var tracks: List<AudioTrack> = emptyList()
+
+    fun tracks(player: ExoPlayer, context: Context): List<AudioTrack> {
+        val currentSignature = player.audioTrackSignature()
+        if (currentSignature != signature) {
+            signature = currentSignature
+            tracks = player.extractAudioTracks(context)
+        }
+        return tracks
     }
 }
 
@@ -2553,6 +2637,28 @@ private class SubtitleOffsetRenderersFactory(
     private val shouldStripSdhProvider: () -> Boolean,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : DefaultRenderersFactory(context) {
+    override fun buildAudioRenderers(
+        context: Context,
+        extensionRendererMode: Int,
+        mediaCodecSelector: MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        audioSink: AudioSink,
+        eventHandler: Handler,
+        eventListener: AudioRendererEventListener,
+        out: ArrayList<Renderer>,
+    ) {
+        super.buildAudioRenderers(
+            context,
+            extensionRendererMode,
+            DolbyFreeMediaCodecSelector(mediaCodecSelector),
+            enableDecoderFallback,
+            audioSink,
+            eventHandler,
+            eventListener,
+            out,
+        )
+    }
+
     override fun buildTextRenderers(
         context: Context,
         output: TextOutput,
@@ -2574,6 +2680,35 @@ private class SubtitleOffsetRenderersFactory(
                 subtitleDelayUsProvider = subtitleDelayUsProvider,
             )
         }
+    }
+}
+
+/**
+ * Hides the crashing platform Dolby decoders (e.g. `c2.dolby.eac3.decoder.eac3`) from the
+ * MediaCodec audio renderer so the bundled ffmpeg extension renderer handles AC-3/E-AC-3
+ * (including E-AC-3 JOC) from the very first prepare attempt instead of failing once and retrying.
+ */
+@androidx.annotation.OptIn(UnstableApi::class)
+private class DolbyFreeMediaCodecSelector(
+    private val delegate: MediaCodecSelector,
+) : MediaCodecSelector {
+    override fun getDecoderInfos(
+        mimeType: String,
+        requiresSecureDecoder: Boolean,
+        requiresTunnelingDecoder: Boolean,
+    ): List<MediaCodecInfo> {
+        val decoderInfos = delegate.getDecoderInfos(
+            mimeType,
+            requiresSecureDecoder,
+            requiresTunnelingDecoder,
+        )
+        if (mimeType != MimeTypes.AUDIO_AC3 &&
+            mimeType != MimeTypes.AUDIO_E_AC3 &&
+            mimeType != MimeTypes.AUDIO_E_AC3_JOC
+        ) {
+            return decoderInfos
+        }
+        return decoderInfos.filterNot { it.name.contains("dolby", ignoreCase = true) }
     }
 }
 
