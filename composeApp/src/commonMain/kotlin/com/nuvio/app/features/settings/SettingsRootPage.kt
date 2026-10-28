@@ -4,7 +4,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.rounded.Groups
-import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.runtime.Composable
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.StringResource
@@ -19,107 +18,102 @@ internal fun LazyListScope.settingsRootContent(
 ) {
     SettingsCategory.entries.filter { category == null || it == category }.forEach { group ->
         item(key = group.name) {
-            SettingsSection(
-                title = stringResource(group.labelRes),
-                isTablet = isTablet,
-            ) {
-                SettingsGroup(isTablet = isTablet) {
-                    when (group) {
-                        SettingsCategory.You -> {
-                            SettingsPageRow(
-                                page = SettingsPage.Account,
-                                description = Res.string.compose_settings_root_account_description,
-                                isTablet = isTablet,
-                                onPageClick = onPageClick,
-                            )
-                            if (onSwitchProfileClick != null) {
-                                SettingsGroupDivider(isTablet = isTablet)
-                                SettingsNavigationRow(
-                                    title = stringResource(Res.string.compose_settings_root_switch_profile_title),
-                                    description = stringResource(Res.string.compose_settings_root_switch_profile_description),
-                                    icon = Icons.Default.People,
-                                    isTablet = isTablet,
-                                    onClick = onSwitchProfileClick,
-                                )
-                            }
-                            if (onWatchPartyClick != null) {
-                                SettingsGroupDivider(isTablet = isTablet)
-                                SettingsNavigationRow(
-                                    title = stringResource(Res.string.party_title),
-                                    description = stringResource(Res.string.party_settings_description),
-                                    icon = Icons.Rounded.Groups,
-                                    isTablet = isTablet,
-                                    onClick = onWatchPartyClick,
-                                )
-                            }
-                        }
-                        SettingsCategory.Look -> {
-                            SettingsPageRow(
-                                page = SettingsPage.Appearance,
-                                description = Res.string.settings_appearance_description,
-                                isTablet = isTablet,
-                                onPageClick = onPageClick,
-                            )
+            SettingsGroup(isTablet = isTablet) {
+                when (group) {
+                    SettingsCategory.You -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Account,
+                            description = Res.string.compose_settings_root_account_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        if (onSwitchProfileClick != null) {
                             SettingsGroupDivider(isTablet = isTablet)
-                            SettingsPageRow(
-                                page = SettingsPage.Layout,
-                                description = Res.string.compose_settings_root_layout_description,
+                            SettingsNavigationRow(
+                                title = stringResource(Res.string.compose_settings_root_switch_profile_title),
+                                description = stringResource(Res.string.compose_settings_root_switch_profile_description),
+                                icon = Icons.Default.People,
                                 isTablet = isTablet,
-                                onPageClick = onPageClick,
+                                onClick = onSwitchProfileClick,
                             )
                         }
-                        SettingsCategory.Watch -> {
-                            SettingsPageRow(
-                                page = SettingsPage.ContentDiscovery,
-                                description = Res.string.compose_settings_root_content_discovery_description,
-                                isTablet = isTablet,
-                                onPageClick = onPageClick,
-                            )
+                        if (onWatchPartyClick != null) {
                             SettingsGroupDivider(isTablet = isTablet)
-                            SettingsPageRow(
-                                page = SettingsPage.Playback,
-                                description = Res.string.settings_playback_subtitle,
+                            SettingsNavigationRow(
+                                title = stringResource(Res.string.party_title),
+                                description = stringResource(Res.string.party_settings_description),
+                                icon = Icons.Rounded.Groups,
                                 isTablet = isTablet,
-                                onPageClick = onPageClick,
+                                onClick = onWatchPartyClick,
                             )
                         }
-                        SettingsCategory.Services -> {
-                            SettingsPageRow(
-                                page = SettingsPage.Integrations,
-                                description = Res.string.compose_settings_root_integrations_description,
-                                isTablet = isTablet,
-                                onPageClick = onPageClick,
-                            )
-                            SettingsGroupDivider(isTablet = isTablet)
-                            SettingsPageRow(
-                                page = SettingsPage.TraktAuthentication,
-                                description = Res.string.compose_settings_root_tracking_description,
-                                isTablet = isTablet,
-                                onPageClick = onPageClick,
-                            )
-                        }
-                        SettingsCategory.System -> {
-                            SettingsPageRow(
-                                page = SettingsPage.Notifications,
-                                description = Res.string.compose_settings_root_notifications_description,
-                                isTablet = isTablet,
-                                onPageClick = onPageClick,
-                            )
-                            SettingsGroupDivider(isTablet = isTablet)
-                            SettingsPageRow(
-                                page = SettingsPage.Advanced,
-                                description = Res.string.compose_settings_root_advanced_description,
-                                isTablet = isTablet,
-                                onPageClick = onPageClick,
-                            )
-                            SettingsGroupDivider(isTablet = isTablet)
-                            SettingsPageRow(
-                                page = SettingsPage.About,
-                                description = Res.string.compose_settings_root_about_description,
-                                isTablet = isTablet,
-                                onPageClick = onPageClick,
-                            )
-                        }
+                    }
+                    SettingsCategory.Look -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Appearance,
+                            description = Res.string.settings_appearance_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.Layout,
+                            description = Res.string.compose_settings_root_layout_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                    }
+                    SettingsCategory.Watch -> {
+                        SettingsPageRow(
+                            page = SettingsPage.ContentDiscovery,
+                            description = Res.string.compose_settings_root_content_discovery_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.Playback,
+                            description = Res.string.settings_playback_subtitle,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                    }
+                    SettingsCategory.Services -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Integrations,
+                            description = Res.string.compose_settings_root_integrations_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.TraktAuthentication,
+                            description = Res.string.compose_settings_root_tracking_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                    }
+                    SettingsCategory.System -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Notifications,
+                            description = Res.string.compose_settings_root_notifications_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.Advanced,
+                            description = Res.string.compose_settings_root_advanced_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.About,
+                            description = Res.string.compose_settings_root_about_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
                     }
                 }
             }

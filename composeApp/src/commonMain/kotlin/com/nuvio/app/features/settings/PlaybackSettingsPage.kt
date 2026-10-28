@@ -28,7 +28,6 @@ internal fun LazyListScope.playbackSettingsContent(
                         SettingsNavigationRow(
                             title = stringResource(section.page.titleRes),
                             description = stringResource(section.descriptionRes),
-                            icon = section.icon,
                             isTablet = isTablet,
                             onClick = { onPageChange(section.page) },
                         )
