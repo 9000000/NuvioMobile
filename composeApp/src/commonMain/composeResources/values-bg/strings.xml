@@ -760,7 +760,6 @@
     <string name="settings_poster_custom">Персонализиран</string>
     <string name="settings_poster_description">Настрой ширината на картичката и радиуса на ъглите.</string>
     <string name="settings_poster_hide_labels">Скрий надписите</string>
-    <string name="settings_poster_always_show_landscape_clearlogo">Винаги използвайте фон с лого за хоризонтални плакати</string>
     <string name="settings_poster_always_show_landscape_clearlogo">Винаги фон с лого за пейзажни плакати</string>
     <string name="settings_poster_landscape_mode">Хоризонтални плакати</string>
     <string name="settings_poster_live_preview">Преглед на живо</string>
