@@ -39,6 +39,7 @@ import nuvio.composeapp.generated.resources.compose_player_reset
 import nuvio.composeapp.generated.resources.compose_player_select_addon_subtitle_first
 import nuvio.composeapp.generated.resources.compose_player_style
 import nuvio.composeapp.generated.resources.compose_player_subtitle_delay
+import nuvio.composeapp.generated.resources.subtitle_reset_appearance
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 
@@ -91,8 +92,9 @@ fun SubtitleStylePanel(
             )
         }
 
-        com.nuvio.app.features.settings.SubtitleAppearanceSettings(
+        SubtitleAppearanceControls(
             style = style,
+            spacing = sectionGap,
             onStyleChanged = onStyleChanged,
         )
 
@@ -103,11 +105,20 @@ fun SubtitleStylePanel(
             onCueSelected = onAutoSyncCueSelected,
             onReload = onAutoSyncReload,
         )
+
+        Text(
+            text = stringResource(Res.string.subtitle_reset_appearance),
+            modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                .clickable { onStyleChanged(style.resetAppearance()) }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 
 @Composable
-private fun SubtitleStyleSection(
+internal fun SubtitleStyleSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -125,19 +136,22 @@ private fun SubtitleStyleSection(
 }
 
 @Composable
-private fun SubtitleStyleStepper(
+internal fun SubtitleStyleStepper(
     value: String,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
     valueWidth: Dp = 84.dp,
+    enabled: Boolean = true,
 ) {
     Row(
+        modifier = Modifier.alpha(if (enabled) 1f else 0.42f),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SubtitleStepperButton(
             icon = Icons.Rounded.Remove,
             onClick = onDecrease,
+            enabled = enabled,
         )
         Box(
             modifier = Modifier
@@ -156,6 +170,7 @@ private fun SubtitleStyleStepper(
         SubtitleStepperButton(
             icon = Icons.Rounded.Add,
             onClick = onIncrease,
+            enabled = enabled,
         )
     }
 }
@@ -164,13 +179,14 @@ private fun SubtitleStyleStepper(
 private fun SubtitleStepperButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
+    enabled: Boolean,
 ) {
     Box(
         modifier = Modifier
             .size(40.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White.copy(alpha = 0.08f))
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
