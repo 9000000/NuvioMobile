@@ -37,6 +37,7 @@ internal class SidecarSubtitleController(
     private val scope: CoroutineScope,
     private val getPlayer: () -> Player?,
     private val getSubtitleDelayMs: () -> Int = { 0 },
+    private val presentCues: (List<Cue>) -> List<Cue> = { it },
 ) {
     private var sidecarSubtitleJob: Job? = null
     private var sidecarGenerationCounter = 0L
@@ -84,7 +85,7 @@ internal class SidecarSubtitleController(
         if (clearView) {
             postToSubtitleView { view ->
                 view.setTag(R.id.player_view_sidecar_generation_tag, null)
-                view.setCues(emptyList())
+                view.setCues(presentCues(emptyList()))
             }
         }
     }
@@ -109,7 +110,7 @@ internal class SidecarSubtitleController(
         sidecarTimedCues = emptyList()
         postToSubtitleView { view ->
             view.setTag(R.id.player_view_sidecar_generation_tag, generation)
-            view.setCues(emptyList())
+            view.setCues(presentCues(emptyList()))
         }
         fun isCurrent() =
             activeSidecarSubtitleKey == subtitleKey && activeSidecarGeneration == generation
@@ -137,7 +138,7 @@ internal class SidecarSubtitleController(
                     sidecarTimedCues = emptyList()
                     postToSubtitleView { view ->
                         view.setTag(R.id.player_view_sidecar_generation_tag, null)
-                        view.setCues(emptyList())
+                        view.setCues(presentCues(emptyList()))
                     }
                     return@launch
                 }
@@ -165,7 +166,7 @@ internal class SidecarSubtitleController(
                 sidecarTimedCues = emptyList()
                 postToSubtitleView { view ->
                     view.setTag(R.id.player_view_sidecar_generation_tag, null)
-                    view.setCues(emptyList())
+                    view.setCues(presentCues(emptyList()))
                 }
             }
         }
@@ -190,7 +191,7 @@ internal class SidecarSubtitleController(
                 activeSidecarGeneration == currentGeneration &&
                 view.getTag(R.id.player_view_sidecar_generation_tag) == currentGeneration
             ) {
-                view.setCues(active)
+                view.setCues(presentCues(active))
             }
         }
     }

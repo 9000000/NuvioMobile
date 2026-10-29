@@ -16,6 +16,8 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 
 internal actual object SubtitleFontStorage {
+    actual fun defaultFamily(): FontFamily = FontFamily.SansSerif
+
     private fun file(name: String): File {
         require(name == "fonts.json" || name.matches(Regex("custom-[a-f0-9-]{36}")))
         val context = requireNotNull(PlayerSettingsStorage.applicationContext())

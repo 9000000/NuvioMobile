@@ -71,7 +71,8 @@ internal fun rememberSubtitleFontFamily(id: String): FontFamily {
             when (id) {
                 "serif" -> FontFamily.Serif
                 "mono" -> FontFamily.Monospace
-                "default", "sans" -> FontFamily.SansSerif
+                "default" -> SubtitleFontStorage.defaultFamily()
+                "sans" -> FontFamily.SansSerif
                 else -> runCatching { SubtitleFontStorage.fontFamily(id) }.getOrNull() ?: FontFamily.SansSerif
             }
         }
@@ -80,6 +81,7 @@ internal fun rememberSubtitleFontFamily(id: String): FontFamily {
 }
 
 internal expect object SubtitleFontStorage {
+    fun defaultFamily(): FontFamily
     fun read(name: String): ByteArray?
     fun write(name: String, bytes: ByteArray)
     fun remove(name: String)

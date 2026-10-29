@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.skia.Data
 import org.jetbrains.skia.FontMgr
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSBundle
 import platform.Foundation.NSHomeDirectory
 import platform.Foundation.NSURL
 import platform.UIKit.UIDocumentPickerDelegateProtocol
@@ -35,6 +36,14 @@ import platform.posix.rewind
 
 @OptIn(ExperimentalForeignApi::class)
 internal actual object SubtitleFontStorage {
+    private val bundledFamily: FontFamily by lazy {
+        NSBundle.mainBundle.pathForResource("NotoSans-Regular", "ttf")?.let(::readFontFile)?.let {
+            FontFamily(Font(identity = "subtitle-default", data = it))
+        } ?: FontFamily.SansSerif
+    }
+
+    actual fun defaultFamily(): FontFamily = bundledFamily
+
     private val directory get() = "${NSHomeDirectory()}/Library/Application Support/subtitle-fonts"
 
     private fun path(name: String): String {
