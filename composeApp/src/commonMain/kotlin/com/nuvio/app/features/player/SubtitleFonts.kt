@@ -73,7 +73,7 @@ internal fun rememberSubtitleFontFamily(id: String): FontFamily {
                 "mono" -> FontFamily.Monospace
                 "default" -> SubtitleFontStorage.defaultFamily()
                 "sans" -> FontFamily.SansSerif
-                else -> runCatching { SubtitleFontStorage.fontFamily(id) }.getOrNull() ?: FontFamily.SansSerif
+                else -> runCatching { SubtitleFontStorage.fontFamily(id) }.getOrNull() ?: SubtitleFontStorage.defaultFamily()
             }
         }
     }

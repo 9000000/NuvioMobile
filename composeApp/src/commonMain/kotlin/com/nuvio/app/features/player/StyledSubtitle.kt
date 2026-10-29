@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
@@ -90,11 +91,11 @@ internal fun StyledSubtitleText(
             if (style.outlineEnabled && outline > 0) {
                 drawText(
                     layout, color = style.outlineColor.copy(alpha = style.outlineColor.alpha * style.textColor.alpha),
-                    topLeft = origin, drawStyle = Stroke(outline * 2),
+                    topLeft = origin, drawStyle = Stroke(outline * 2), shadow = Shadow.None,
                 )
             }
             drawText(
-                layout, color = style.textColor, topLeft = origin,
+                layout, color = style.textColor, topLeft = origin, drawStyle = Fill,
                 shadow = if (style.appearance.shadowEnabled) Shadow(
                     color = Color.Black.copy(alpha = style.appearance.shadowOpacity / 100f * style.textColor.alpha),
                     offset = Offset(shadowSize, shadowSize),
