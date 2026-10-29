@@ -2478,7 +2478,7 @@
     <string name="stream_info_server">Server</string>
     <string name="settings_group_you">You</string>
     <string name="settings_group_look">Look</string>
-    <string name="settings_group_watch">Content &amp; Playback</string>
+    <string name="settings_group_watch">Media</string>
     <string name="settings_group_services">Services</string>
     <string name="settings_group_system">System</string>
     <string name="compose_settings_page_layout">Layout</string>
