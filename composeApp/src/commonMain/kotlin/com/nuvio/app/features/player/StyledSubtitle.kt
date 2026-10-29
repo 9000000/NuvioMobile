@@ -23,6 +23,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 internal fun StyledSubtitleOverlay(text: String, style: SubtitleStyleState, modifier: Modifier = Modifier) {
+    val fontFamily = rememberSubtitleFontFamily(style.appearance.fontId)
     if (text.isBlank()) return
     BoxWithConstraints(modifier.fillMaxSize()) {
         val scale = (maxHeight / 360.dp).coerceAtMost(1f)
@@ -42,7 +44,7 @@ internal fun StyledSubtitleOverlay(text: String, style: SubtitleStyleState, modi
             ),
             contentAlignment = Alignment.BottomCenter,
         ) {
-            StyledSubtitleText(text, style, scale = scale)
+            StyledSubtitleText(text, style, scale = scale, fontFamily = fontFamily)
         }
     }
 }
@@ -53,8 +55,8 @@ internal fun StyledSubtitleText(
     style: SubtitleStyleState,
     modifier: Modifier = Modifier,
     scale: Float = 1f,
+    fontFamily: FontFamily = rememberSubtitleFontFamily(style.appearance.fontId),
 ) {
-    val fontFamily = rememberSubtitleFontFamily(style.appearance.fontId)
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     BoxWithConstraints(modifier) {
