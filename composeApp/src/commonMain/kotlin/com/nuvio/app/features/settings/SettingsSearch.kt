@@ -654,6 +654,7 @@ internal fun settingsSearchEntries(
             section = playbackDecoder,
             page = SettingsPage.PlaybackVideo,
             rows = listOf(
+                PlaybackSearchRow("auto-switch-engine", stringResource(Res.string.settings_playback_auto_switch_engine_on_error), stringResource(Res.string.settings_playback_auto_switch_engine_on_error_description), page = SettingsPage.PlaybackPlayer),
                 PlaybackSearchRow("decoder-priority", stringResource(Res.string.settings_playback_decoder_priority)),
                 PlaybackSearchRow("dv7-hevc", stringResource(Res.string.settings_playback_map_dv7_to_hevc), stringResource(Res.string.settings_playback_map_dv7_to_hevc_description)),
                 PlaybackSearchRow("tunneled-playback", stringResource(Res.string.settings_playback_tunneled_playback), stringResource(Res.string.settings_playback_tunneled_playback_description)),
@@ -670,6 +671,7 @@ internal fun settingsSearchEntries(
             page = SettingsPage.PlaybackSubtitles,
             rows = listOf(
                 PlaybackSearchRow("libass", stringResource(Res.string.settings_playback_enable_libass), stringResource(Res.string.settings_playback_enable_libass_description)),
+                PlaybackSearchRow("libass-render-mode", stringResource(Res.string.settings_playback_render_mode), stringResource(Res.string.settings_playback_render_mode_description)),
                 PlaybackSearchRow("libass-render", stringResource(Res.string.settings_playback_render_scale)),
             ),
         )

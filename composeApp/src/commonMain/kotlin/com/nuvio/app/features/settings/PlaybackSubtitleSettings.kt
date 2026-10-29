@@ -40,6 +40,7 @@ internal fun PlaybackSubtitleSettings(
     var showPreferredSubtitleDialog by remember { mutableStateOf(false) }
     var showSecondarySubtitleDialog by remember { mutableStateOf(false) }
     var showLibassRenderScaleDialog by remember { mutableStateOf(false) }
+    var showLibassRenderModeDialog by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(if (isTablet) 18.dp else 12.dp)) {
         SettingsSection(
             title = stringResource(Res.string.settings_playback_page_subtitles),
@@ -141,8 +142,23 @@ internal fun PlaybackSubtitleSettings(
                     if (settings.useLibass) {
                         SettingsGroupDivider(isTablet = isTablet)
                         SettingsNavigationRow(
+                            title = stringResource(Res.string.settings_playback_render_mode),
+                            description = if (settings.tunnelingEnabled) {
+                                stringResource(Res.string.settings_playback_render_mode_tunneled)
+                            } else {
+                                when (settings.libassRenderMode) {
+                                    "OVERLAY" -> stringResource(Res.string.settings_playback_render_mode_overlay)
+                                    else -> stringResource(Res.string.settings_playback_render_mode_video_effect)
+                                }
+                            },
+                            enabled = subtitleRenderingEnabled && !settings.tunnelingEnabled,
+                            isTablet = isTablet,
+                            onClick = { showLibassRenderModeDialog = true },
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsNavigationRow(
                             title = stringResource(Res.string.settings_playback_render_scale),
-                            description = settings.libassRenderScale,
+                            description = libassRenderScaleLabel(settings.libassRenderScale),
                             enabled = subtitleRenderingEnabled,
                             isTablet = isTablet,
                             onClick = { showLibassRenderScaleDialog = true },
@@ -200,6 +216,17 @@ internal fun PlaybackSubtitleSettings(
             onDismiss = { showLibassRenderScaleDialog = false },
         )
     }
+
+    if (showLibassRenderModeDialog) {
+        LibassRenderModeDialog(
+            selectedMode = settings.libassRenderMode,
+            onModeSelected = { mode ->
+                PlayerSettingsRepository.setLibassRenderMode(mode)
+                showLibassRenderModeDialog = false
+            },
+            onDismiss = { showLibassRenderModeDialog = false },
+        )
+    }
 }
 
 @Composable
@@ -209,6 +236,15 @@ internal fun subtitleColorLabel(color: Color): String {
     } else {
         color.toStorageHexString()
     }
+}
+
+private fun libassRenderScaleLabel(scale: String): String = when (scale) {
+    "FULL" -> "1:1"
+    "THREE_QUARTER" -> "\u00BE"
+    "HALF" -> "\u00BD"
+    "THIRD" -> "\u2153"
+    "QUARTER" -> "\u00BC"
+    else -> scale
 }
 
 @Composable
@@ -252,6 +288,52 @@ private fun LibassRenderScaleDialog(
         }
     }
 }
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun LibassRenderModeDialog(
+    selectedMode: String,
+    onModeSelected: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val options = listOf(
+        "OVERLAY" to Pair(
+            Res.string.settings_playback_render_mode_overlay,
+            Res.string.settings_playback_render_mode_overlay_description,
+        ),
+        "VIDEO_EFFECT" to Pair(
+            Res.string.settings_playback_render_mode_video_effect,
+            Res.string.settings_playback_render_mode_video_effect_description,
+        ),
+    )
+
+    DialogSurface(
+        onDismissRequest = onDismiss,
+        title = stringResource(Res.string.settings_playback_render_mode),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { (value, res) ->
+                DialogOption(
+                    text = stringResource(res.first),
+                    description = stringResource(res.second),
+                    selected = value == selectedMode,
+                    onClick = { onModeSelected(value) },
+                )
+            }
+        }
+
+        DialogButtons {
+            DialogButton(
+                text = stringResource(Res.string.action_done),
+                onClick = onDismiss,
+            )
+        }
+    }
+}
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 internal fun SubtitleColorDialog(

@@ -161,11 +161,36 @@ class SettingsPagesTest {
         assertEquals("original", PlayerSettingsRepository.uiState.value.preferredAudioLanguage)
         compose.onNodeWithText("Back").performScrollTo().performClick()
         compose.onNodeWithText("Player").performScrollTo().performClick()
+        compose.onNodeWithText("Auto-switch engine on playback error").performScrollTo().performClick()
+        assertFalse(PlayerSettingsRepository.uiState.value.autoSwitchPlaybackEngineOnError)
+        assertEquals(false, PlayerSettingsStorage.loadAutoSwitchPlaybackEngineOnError())
+        compose.runOnIdle { PlayerSettingsRepository.onProfileChanged() }
+        assertFalse(PlayerSettingsRepository.uiState.value.autoSwitchPlaybackEngineOnError)
         compose.onNodeWithText("Playback Engine").performClick()
         compose.onNodeWithText("libmpv").performClick()
         assertEquals(AndroidPlaybackEngine.Libmpv, PlayerSettingsRepository.uiState.value.androidPlaybackEngine)
         compose.onNodeWithText("Back").performScrollTo().performClick()
         compose.onNodeWithText("Buffer and cache").assertDoesNotExist()
+    }
+
+    @Test
+    fun subtitleRenderModePersistsAndRespectsTunneledPlayback() {
+        PlayerSettingsRepository.setUseLibass(true)
+        compose.setContent {
+            NuvioTheme {
+                LazyColumn(Modifier.fillMaxSize()) {
+                    playbackSettingsContent(false, SettingsPage.PlaybackSubtitles) {}
+                }
+            }
+        }
+        compose.onNodeWithText("ASS Render Mode").performScrollTo().performClick()
+        compose.onNodeWithText("Video Effect").performClick()
+        assertEquals("VIDEO_EFFECT", PlayerSettingsRepository.uiState.value.libassRenderMode)
+        assertEquals("VIDEO_EFFECT", PlayerSettingsStorage.loadLibassRenderMode())
+        compose.runOnIdle { PlayerSettingsRepository.onProfileChanged() }
+        compose.onNodeWithText("Video Effect").performScrollTo().assertIsDisplayed()
+        compose.runOnIdle { PlayerSettingsRepository.setTunnelingEnabled(true) }
+        compose.onNodeWithText("ASS Render Mode").performScrollTo().assertIsNotEnabled()
     }
 
     @Test
@@ -204,6 +229,8 @@ class SettingsPagesTest {
                 "playback-touch-gestures" to SettingsPage.PlaybackInterface,
                 "playback-preferred-audio" to SettingsPage.PlaybackAudio,
                 "playback-preferred-subtitles" to SettingsPage.PlaybackSubtitles,
+                "playback-auto-switch-engine" to SettingsPage.PlaybackPlayer,
+                "playback-libass-render-mode" to SettingsPage.PlaybackSubtitles,
                 "playback-custom-buffers" to SettingsPage.PlaybackBuffer,
                 "liquid-glass" to SettingsPage.Layout,
                 "navigation-bar" to SettingsPage.Layout,
