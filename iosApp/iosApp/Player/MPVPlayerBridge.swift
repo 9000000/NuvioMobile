@@ -565,19 +565,21 @@ final class MPVPlayerViewController: UIViewController {
 
     private func configureBundledSubtitleFont() {
         guard let fontURL = Bundle.main.url(
-            forResource: "NotoSansCJKsc-Regular",
-            withExtension: "otf"
+            forResource: "NotoSans-Regular",
+            withExtension: "ttf"
         ) else {
-            print("[MPV] Bundled CJK subtitle font is missing")
+            print("[MPV] Bundled subtitle font is missing")
             return
         }
 
         let fontDirectory = fontURL.deletingLastPathComponent().path
+        checkError(mpv_set_option_string(mpv, "config", "yes"))
         fontDirectory.withCString { path in
+            checkError(mpv_set_option_string(mpv, "config-dir", path))
             checkError(mpv_set_option_string(mpv, "sub-fonts-dir", path))
         }
-        checkError(mpv_set_option_string(mpv, "sub-font", "Noto Sans CJK SC"))
-        print("[MPV] Using bundled CJK subtitle font: \(fontURL.lastPathComponent)")
+        checkError(mpv_set_option_string(mpv, "sub-font", "Noto Sans"))
+        print("[MPV] Using bundled subtitle font: \(fontURL.lastPathComponent)")
     }
 
     private func setupNotifications() {
