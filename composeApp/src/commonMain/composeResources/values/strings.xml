@@ -2506,4 +2506,25 @@
     <string name="settings_playback_page_p2p_description">Torrent playback, profile, and cache</string>
     <string name="settings_appearance_description">Themes, app icon, and language</string>
     <string name="settings_appearance_title">Appearance</string>
+    <string name="subtitle_appearance">Appearance</string>
+    <string name="subtitle_preview">Preview</string>
+    <string name="subtitle_preview_text">Every story begins with a little curiosity.</string>
+    <string name="subtitle_appearance_hint">Applies to text subtitles. Styled ASS and image subtitles keep their original appearance.</string>
+    <string name="subtitle_font">Font</string>
+    <string name="subtitle_font_default">Default</string>
+    <string name="subtitle_font_sans">Sans serif</string>
+    <string name="subtitle_font_serif">Serif</string>
+    <string name="subtitle_font_mono">Monospace</string>
+    <string name="subtitle_font_import">Import font</string>
+    <string name="subtitle_font_import_hint">Choose a .ttf or .otf file, up to 10 MB. Imported fonts stay on this device.</string>
+    <string name="subtitle_font_import_error">Could not import this font. Choose a valid .ttf or .otf file under 10 MB.</string>
+    <string name="subtitle_font_missing">Font unavailable on this device. Using the default font.</string>
+    <string name="subtitle_font_remove">Remove %1$s</string>
+    <string name="subtitle_background_opacity">Background opacity</string>
+    <string name="subtitle_background_roundness">Corner roundness</string>
+    <string name="subtitle_shadow">Drop shadow</string>
+    <string name="subtitle_shadow_description">Separate the text from bright scenes.</string>
+    <string name="subtitle_shadow_opacity">Shadow opacity</string>
+    <string name="subtitle_shadow_size">Shadow size</string>
+    <string name="subtitle_reset_appearance">Reset appearance</string>
 </resources>
