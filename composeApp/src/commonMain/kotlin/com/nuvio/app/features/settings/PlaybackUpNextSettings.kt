@@ -6,14 +6,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
+import com.nuvio.app.core.ui.Slider
 import com.nuvio.app.core.ui.DialogButton
 import com.nuvio.app.core.ui.DialogButtons
 import com.nuvio.app.core.ui.DialogOption
 import com.nuvio.app.core.ui.DialogSurface
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -154,10 +153,6 @@ internal fun PlaybackUpNextSettings(
                                 },
                                 valueRange = 97f..100f,
                                 steps = calculateSteps(97f, 100f, 0.5f),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                ),
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -207,10 +202,6 @@ internal fun PlaybackUpNextSettings(
                                 },
                                 valueRange = 0f..3.5f,
                                 steps = calculateSteps(0f, 3.5f, 0.5f),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                ),
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
