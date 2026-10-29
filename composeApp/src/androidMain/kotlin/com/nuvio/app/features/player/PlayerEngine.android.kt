@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.util.AttributeSet
+import android.view.SurfaceHolder
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
@@ -82,6 +83,7 @@ import `is`.xyz.mpv.Utils
 import com.nuvio.tv.libass.media.widget.AssSubtitleSurfaceView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -278,6 +280,7 @@ private fun ExoPlayerSurface(
     val latestVideoAspectRatio = rememberUpdatedState(videoAspectRatio)
     var currentSubtitleStyle by remember { mutableStateOf(SubtitleStyleState.DEFAULT) }
     val subtitlePresenter = remember(playerSourceKey) { SubtitleCuePresenter { currentSubtitleStyle } }
+    var sidecarControllerRef by remember { mutableStateOf<SidecarSubtitleController?>(null) }
     var decoderPriorityOverride by remember(playerSourceKey) { mutableStateOf<Int?>(null) }
     var fallbackStartPositionMs by remember(playerSourceKey) { mutableStateOf<Long?>(null) }
     val effectiveDecoderPriority = decoderPriorityOverride ?: playerSettings.decoderPriority
@@ -399,10 +402,11 @@ private fun ExoPlayerSurface(
             },
             shouldStripSdhProvider = { currentSubtitleStyle.stripSdh },
             presentCues = { cues ->
-                val mime = playerViewRef?.player?.currentTracks?.groups
+                val format = playerViewRef?.player?.currentTracks?.groups
                     ?.firstOrNull { it.type == C.TRACK_TYPE_TEXT && it.isSelected }
-                    ?.getTrackFormat(0)?.sampleMimeType
-                subtitlePresenter.present(cues, mime != MimeTypes.TEXT_SSA)
+                    ?.getTrackFormat(0)
+                if (sidecarControllerRef?.isSidecarActive() == true) emptyList()
+                else subtitlePresenter.present(cues, format?.sampleMimeType != MimeTypes.TEXT_SSA && format?.codecs != MimeTypes.TEXT_SSA)
             },
             videoBoundsFractionProvider = {
                 playerViewRef?.videoBoundsFraction(latestVideoAspectRatio.value)
@@ -563,8 +567,8 @@ private fun ExoPlayerSurface(
             scope = coroutineScope,
             getPlayer = { exoPlayer },
             getSubtitleDelayMs = { latestSubtitleDelayMs.value },
-            presentCues = { cues -> subtitlePresenter.present(cues, latestExternalSubtitleMimeType.value != MimeTypes.TEXT_SSA) },
-        )
+            presentCues = { cues -> subtitlePresenter.present(cues, sidecarControllerRef?.subtitleMimeType != MimeTypes.TEXT_SSA) },
+        ).also { sidecarControllerRef = it }
     }
 
     val autoSyncCoordinator = rememberAutoSyncCoordinator( // AutoSync hook
@@ -1273,6 +1277,7 @@ private fun LibmpvPlayerSurface(
                     }
                     MPV.mpvEvent.MPV_EVENT_FILE_LOADED,
                     MPV.mpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
+                        if (eventId == MPV.mpvEvent.MPV_EVENT_FILE_LOADED) view.attachStartupSubtitles()
                         coroutineScope.launch(Dispatchers.Main.immediate) {
                             latestOnError.value(null)
                             val snapshot = view.snapshot()
@@ -1457,6 +1462,7 @@ private class NuvioLibmpvView(
         Thread(runnable, "NuvioLibmpv").apply { isDaemon = true }
     }.asCoroutineDispatcher()
     private val mpvScope = CoroutineScope(SupervisorJob() + mpvDispatcher)
+    private val surfaceReady = CompletableDeferred<Unit>()
     private val released = AtomicBoolean(false)
     private var currentSourceUrl: String? = null
     private var currentSourceAudioUrl: String? = null
@@ -1516,6 +1522,11 @@ private class NuvioLibmpvView(
 
     override fun postInitOptions() = Unit
 
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        super.surfaceCreated(holder)
+        surfaceReady.complete(Unit)
+    }
+
     override fun observeProperties() {
         val props = mapOf(
             "pause" to MPV.mpvFormat.MPV_FORMAT_FLAG,
@@ -1541,22 +1552,25 @@ private class NuvioLibmpvView(
         requestHeaders: Map<String, String>,
         externalSubtitles: List<com.nuvio.app.features.streams.StreamSubtitle>,
         playWhenReady: Boolean,
-    ) = withContext(mpvDispatcher) {
-        if (!released.get()) {
-            val sameSource =
-                currentSourceUrl == sourceUrl &&
-                    currentSourceAudioUrl == sourceAudioUrl &&
-                    currentRequestHeaders == requestHeaders &&
-                    currentExternalSubtitles == externalSubtitles
-            currentSourceUrl = sourceUrl
-            currentSourceAudioUrl = sourceAudioUrl
-            currentRequestHeaders = requestHeaders
-            currentExternalSubtitles = externalSubtitles
-            if (!sameSource) {
-                loadCurrentSourceNow(playWhenReady = playWhenReady)
-            } else {
-                applyRequestHeadersNow(requestHeaders)
-                setPausedNow(!playWhenReady)
+    ) {
+        surfaceReady.await()
+        withContext(mpvDispatcher) {
+            if (!released.get()) {
+                val sameSource =
+                    currentSourceUrl == sourceUrl &&
+                        currentSourceAudioUrl == sourceAudioUrl &&
+                        currentRequestHeaders == requestHeaders &&
+                        currentExternalSubtitles == externalSubtitles
+                currentSourceUrl = sourceUrl
+                currentSourceAudioUrl = sourceAudioUrl
+                currentRequestHeaders = requestHeaders
+                currentExternalSubtitles = externalSubtitles
+                if (!sameSource) {
+                    loadCurrentSourceNow(playWhenReady = playWhenReady)
+                } else {
+                    applyRequestHeadersNow(requestHeaders)
+                    setPausedNow(!playWhenReady)
+                }
             }
         }
     }
@@ -1570,11 +1584,16 @@ private class NuvioLibmpvView(
         currentSourceAudioUrl?.takeIf { it.isNotBlank() }?.let { sourceAudioUrl ->
             mpv.command("audio-add", sourceAudioUrl.toMpvSource(), "auto")
         }
-        currentExternalSubtitles.forEachIndexed { index, subtitle ->
-            val flag = if (index == 0) "auto" else "cached"
-            mpv.command("sub-add", subtitle.url.toMpvSource(), flag, subtitle.name ?: subtitle.language, subtitle.language)
-        }
         setPausedNow(!playWhenReady)
+    }
+
+    fun attachStartupSubtitles() {
+        executeMpv {
+            currentExternalSubtitles.forEachIndexed { index, subtitle ->
+                val flag = if (index == 0) "auto" else "cached"
+                mpv.command("sub-add", subtitle.url.toMpvSource(), flag, subtitle.name ?: subtitle.language, subtitle.language)
+            }
+        }
     }
 
     private fun String.toMpvSource(): String =

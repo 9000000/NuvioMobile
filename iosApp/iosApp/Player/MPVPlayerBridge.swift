@@ -289,6 +289,7 @@ final class MPVPlayerViewController: UIViewController {
     private var externallyManagedViewSize: CGSize?
     private var pendingSurfaceLayoutWorkItems: [DispatchWorkItem] = []
     private var pendingLoadRequest: PendingLoadRequest?
+    private var startupSubtitles: [PluginSubtitle] = []
     private var pendingLoadRetryWorkItem: DispatchWorkItem?
     private var mpv: OpaquePointer?
     private var cachedNowPlayingMetadata: CachedNowPlayingMetadata?
@@ -674,16 +675,11 @@ final class MPVPlayerViewController: UIViewController {
         isPlayerLoading = true
         isPlayerEnded = false
         applyAudioLanguagePreferences(preferredAudioLanguages)
+        startupSubtitles = request.subtitles
         command("loadfile", args: [request.urlString, "replace"])
         if let audioUrl = request.audioUrl, !audioUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.command("audio-add", args: [audioUrl, "select"], checkForErrors: false)
-            }
-        }
-
-        for subtitle in request.subtitles {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                self?.addSubtitle(subtitle, mode: "auto")
             }
         }
     }
@@ -986,6 +982,7 @@ final class MPVPlayerViewController: UIViewController {
         pendingSurfaceLayoutWorkItems.forEach { $0.cancel() }
         pendingSurfaceLayoutWorkItems.removeAll(keepingCapacity: false)
         pendingLoadRequest = nil
+        startupSubtitles = []
         nowPlayingController.invalidate()
         clearPlaybackError()
         deactivateAudioSession()
@@ -1280,6 +1277,9 @@ final class MPVPlayerViewController: UIViewController {
                     DispatchQueue.main.async {
                         self.clearPlaybackError()
                         self.isPlayerLoading = false
+                        let subtitles = self.startupSubtitles
+                        self.startupSubtitles = []
+                        subtitles.forEach { self.addSubtitle($0, mode: "auto") }
                         self.updateState()
                         self.publishNowPlayingForPlaybackSession()
                         self.logCurrentAudioOutput()
